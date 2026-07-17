@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import '@/app/globals.css';
 
-export default function LoginPage() {
+// Inner component that uses useSearchParams — must be wrapped in Suspense
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextUrl = searchParams.get('next') || '/admin/dashboard';
@@ -104,5 +105,18 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+// Outer page wraps LoginForm in Suspense to satisfy Next.js production build
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: 'var(--text-muted)' }}>Loading...</p>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
