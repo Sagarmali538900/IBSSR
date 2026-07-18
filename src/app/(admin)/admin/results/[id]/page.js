@@ -4,6 +4,7 @@ import Link from 'next/link';
 import dbConnect from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { ExamResult, SectionResult, ExamSession, Section, Question, Option, CandidateAnswer } from '@/lib/models';
+import { getBlobImageSrc } from '@/lib/getBlobImageSrc';
 
 export default async function ResultDetailPage({ params }) {
   const { id: resultId } = await params;
@@ -192,7 +193,7 @@ export default async function ResultDetailPage({ params }) {
                       {/* Question image */}
                       {q.image && (
                         <div style={{ marginBottom: '1rem' }}>
-                          <img src={q.image} alt="Question Graphic" style={{ maxHeight: '100px', borderRadius: '6px', border: '1px solid var(--glass-border)' }} />
+                          <img src={getBlobImageSrc(q.image)} alt="Question Graphic" style={{ maxHeight: '100px', borderRadius: '6px', border: '1px solid var(--glass-border)' }} />
                         </div>
                       )}
 
@@ -215,7 +216,7 @@ export default async function ResultDetailPage({ params }) {
                             <li key={opt._id.toString()} className={optClass} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', border: '1px solid var(--glass-border)', borderRadius: '8px', marginBottom: '0.5rem' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 {opt.image && (
-                                  <img src={opt.image} alt="Option Image" style={{ maxHeight: '30px', borderRadius: '4px' }} />
+                                  <img src={getBlobImageSrc(opt.image)} alt="Option Image" style={{ maxHeight: '30px', borderRadius: '4px' }} />
                                 )}
                                 <span style={{ color: isSelected ? '#fff' : 'var(--text-primary)' }}>
                                   {opt.text}

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { compressImage } from '@/lib/compressImage';
+import { getBlobImageSrc } from '@/lib/getBlobImageSrc';
 
 export default function EditQuestionClient({ examId, question, initialOptions }) {
   const router = useRouter();
@@ -176,7 +177,7 @@ export default function EditQuestionClient({ examId, question, initialOptions })
             <label htmlFor="image">Question Image</label>
             {question.image && !clearImage && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1rem', background: 'rgba(0,0,0,0.2)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', width: 'fit-content' }}>
-                <img src={question.image} alt="Question Graphic" style={{ maxHeight: '80px', borderRadius: '4px' }} />
+                <img src={getBlobImageSrc(question.image)} alt="Question Graphic" style={{ maxHeight: '80px', borderRadius: '4px' }} />
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', margin: 0 }}>
                   <input
                     type="checkbox"
@@ -236,7 +237,7 @@ export default function EditQuestionClient({ examId, question, initialOptions })
                 <div className="form-group" style={{ flex: 2, minWidth: '150px', margin: 0 }}>
                   {opt.image && !opt.clearImage && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', background: 'rgba(0,0,0,0.1)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--glass-border)', width: 'fit-content' }}>
-                      <img src={opt.image} alt="Thumbnail" style={{ maxHeight: '30px', borderRadius: '4px' }} />
+                      <img src={getBlobImageSrc(opt.image)} alt="Thumbnail" style={{ maxHeight: '30px', borderRadius: '4px' }} />
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.75rem', margin: 0 }}>
                         <input
                           type="checkbox"

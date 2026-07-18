@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { getBlobImageSrc } from '@/lib/getBlobImageSrc';
 
 export default function ExamRunClient({
   sessionId,
@@ -199,7 +200,7 @@ export default function ExamRunClient({
                 {/* Question Image */}
                 {q.image && (
                   <div style={{ marginBottom: '1.5rem' }}>
-                    <img src={q.image} alt="Question Diagram" style={{ maxHeight: '200px', borderRadius: '8px', border: '1px solid var(--glass-border)' }} />
+                    <img src={getBlobImageSrc(q.image)} alt="Question Diagram" style={{ maxHeight: '200px', borderRadius: '8px', border: '1px solid var(--glass-border)' }} />
                   </div>
                 )}
 
@@ -224,7 +225,7 @@ export default function ExamRunClient({
                         {/* Display choice option contents */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
                           {opt.image && (
-                            <img src={opt.image} alt="Choice Graphic" style={{ maxHeight: '60px', borderRadius: '4px', border: '1px solid var(--glass-border)', padding: '2px', background: 'rgba(0,0,0,0.1)' }} />
+                            <img src={getBlobImageSrc(opt.image)} alt="Choice Graphic" style={{ maxHeight: '60px', borderRadius: '4px', border: '1px solid var(--glass-border)', padding: '2px', background: 'rgba(0,0,0,0.1)' }} />
                           )}
                           <span style={{ color: isChecked ? '#fff' : 'var(--text-primary)' }}>
                             {opt.text}

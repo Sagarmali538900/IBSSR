@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { getBlobImageSrc } from '@/lib/getBlobImageSrc';
 
 export default function ExamDetailClient({ exam, sections, questions, options, canEdit }) {
   const router = useRouter();
@@ -216,7 +217,7 @@ export default function ExamDetailClient({ exam, sections, questions, options, c
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>
                                 Question Image:
                               </span>
-                              <img src={q.image} alt="Question Graphic" style={{ maxHeight: '100px', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', padding: '4px' }} />
+                              <img src={getBlobImageSrc(q.image)} alt="Question Graphic" style={{ maxHeight: '100px', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', padding: '4px' }} />
                             </div>
                           )}
 
@@ -235,7 +236,7 @@ export default function ExamDetailClient({ exam, sections, questions, options, c
                                   <div key={opt.id} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', padding: '0.5rem 0.75rem', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                                     {opt.image && (
                                       <div style={{ marginBottom: '0.25rem' }}>
-                                        <img src={opt.image} alt="Option Choice" style={{ maxHeight: '40px', borderRadius: '4px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', padding: '2px' }} />
+                                        <img src={getBlobImageSrc(opt.image)} alt="Option Choice" style={{ maxHeight: '40px', borderRadius: '4px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', padding: '2px' }} />
                                       </div>
                                     )}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
