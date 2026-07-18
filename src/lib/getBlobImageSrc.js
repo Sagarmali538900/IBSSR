@@ -9,7 +9,7 @@
 export function getBlobImageSrc(url) {
   if (!url) return null;
   // If it's a blob URL, proxy it. Otherwise return as-is (e.g. local /uploads/ paths).
-  if (url.includes('blob.vercel-storage.com')) {
+  if (url.includes('vercel-storage.com')) {
     return `/api/image-proxy?url=${encodeURIComponent(url)}`;
   }
   return url;

@@ -21,6 +21,7 @@ export async function GET(request) {
     const allowedDomains = [
       'blob.vercel-storage.com',
       'public.blob.vercel-storage.com',
+      'private.blob.vercel-storage.com',
     ];
     const urlObj = new URL(blobUrl);
     const isAllowed = allowedDomains.some(d => urlObj.hostname.endsWith(d));
