@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import dbConnect from '@/lib/db';
-import { ExamSession, ExamResult, SectionResult, Section } from '@/lib/models';
+import { ExamSession, ExamResult, SectionResult } from '@/lib/models';
+import { calculateAndFinalizeResults, sendCandidateReportEmail } from '@/lib/scoring';
 import '@/app/globals.css';
 
 export default async function CompletedPage({ params }) {
@@ -13,7 +14,18 @@ export default async function CompletedPage({ params }) {
     notFound();
   }
 
-  const result = await ExamResult.findOne({ sessionId }).lean();
+  let result = await ExamResult.findOne({ sessionId }).lean();
+  if (!result) {
+    try {
+      // Auto-heal: Calculate and finalize results on the fly if missing
+      const resultObj = await calculateAndFinalizeResults(sessionId);
+      await sendCandidateReportEmail(sessionId, resultObj);
+      result = await ExamResult.findOne({ sessionId }).lean();
+    } catch (error) {
+      console.error('Error generating results on the fly:', error);
+    }
+  }
+
   if (!result) {
     notFound();
   }
