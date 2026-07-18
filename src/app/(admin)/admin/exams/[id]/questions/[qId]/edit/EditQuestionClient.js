@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { compressImage } from '@/lib/compressImage';
 
 export default function EditQuestionClient({ examId, question, initialOptions }) {
   const router = useRouter();
@@ -66,26 +67,29 @@ export default function EditQuestionClient({ examId, question, initialOptions })
       formData.append('text', text);
       formData.append('questionType', questionType);
       formData.append('order', order);
-      
+
       if (clearImage) {
         formData.append('clear_image', 'true');
       } else if (imageFile) {
-        formData.append('image', imageFile);
+        const compressed = await compressImage(imageFile);
+        formData.append('image', compressed);
       }
 
-      filledOptions.forEach((opt, index) => {
+      for (let index = 0; index < filledOptions.length; index++) {
+        const opt = filledOptions[index];
         if (opt.id) {
           formData.append(`option_id_${index}`, opt.id);
         }
         formData.append(`option_text_${index}`, opt.text);
         formData.append(`option_score_${index}`, opt.score);
-        
+
         if (opt.clearImage) {
           formData.append(`option_clear_image_${index}`, 'true');
         } else if (opt.newImageFile) {
-          formData.append(`option_image_${index}`, opt.newImageFile);
+          const compressedOpt = await compressImage(opt.newImageFile);
+          formData.append(`option_image_${index}`, compressedOpt);
         }
-      });
+      }
 
       const res = await fetch(`/api/admin/questions/${question.id}`, {
         method: 'PUT',

@@ -3,6 +3,7 @@
 import { useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { compressImage } from '@/lib/compressImage';
 
 export default function AddQuestionPage({ params }) {
   const router = useRouter();
@@ -62,16 +63,19 @@ export default function AddQuestionPage({ params }) {
       formData.append('questionType', questionType);
       formData.append('order', order);
       if (imageFile) {
-        formData.append('image', imageFile);
+        const compressed = await compressImage(imageFile);
+        formData.append('image', compressed);
       }
 
-      filledOptions.forEach((opt, index) => {
+      for (let index = 0; index < filledOptions.length; index++) {
+        const opt = filledOptions[index];
         formData.append(`option_text_${index}`, opt.text);
         formData.append(`option_score_${index}`, opt.score);
         if (opt.imageFile) {
-          formData.append(`option_image_${index}`, opt.imageFile);
+          const compressedOpt = await compressImage(opt.imageFile);
+          formData.append(`option_image_${index}`, compressedOpt);
         }
-      });
+      }
 
       const res = await fetch(`/api/admin/sections/${secId}/questions`, {
         method: 'POST',
