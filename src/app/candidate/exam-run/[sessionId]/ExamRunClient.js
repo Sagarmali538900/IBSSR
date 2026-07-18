@@ -241,7 +241,7 @@ export default function ExamRunClient({
                               src={getBlobImageSrc(opt.image)}
                               alt="Choice Graphic"
                               style={{
-                                maxHeight: '180px',
+                                maxHeight: '280px',
                                 maxWidth: '100%',
                                 objectFit: 'contain',
                                 borderRadius: '6px',
