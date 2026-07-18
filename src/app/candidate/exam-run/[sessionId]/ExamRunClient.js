@@ -200,7 +200,19 @@ export default function ExamRunClient({
                 {/* Question Image */}
                 {q.image && (
                   <div style={{ marginBottom: '1.5rem' }}>
-                    <img src={getBlobImageSrc(q.image)} alt="Question Diagram" style={{ maxHeight: '200px', borderRadius: '8px', border: '1px solid var(--glass-border)' }} />
+                    <img
+                      src={getBlobImageSrc(q.image)}
+                      alt="Question Diagram"
+                      style={{
+                        maxHeight: '350px',
+                        maxWidth: '100%',
+                        objectFit: 'contain',
+                        borderRadius: '8px',
+                        border: '1px solid var(--glass-border)',
+                        background: 'rgba(0,0,0,0.15)',
+                        padding: '4px'
+                      }}
+                    />
                   </div>
                 )}
 
@@ -223,11 +235,24 @@ export default function ExamRunClient({
                         <span className="option-indicator"></span>
                         
                         {/* Display choice option contents */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start', width: '100%' }}>
                           {opt.image && (
-                            <img src={getBlobImageSrc(opt.image)} alt="Choice Graphic" style={{ maxHeight: '60px', borderRadius: '4px', border: '1px solid var(--glass-border)', padding: '2px', background: 'rgba(0,0,0,0.1)' }} />
+                            <img
+                              src={getBlobImageSrc(opt.image)}
+                              alt="Choice Graphic"
+                              style={{
+                                maxHeight: '180px',
+                                maxWidth: '100%',
+                                objectFit: 'contain',
+                                borderRadius: '6px',
+                                border: '1px solid var(--glass-border)',
+                                padding: '4px',
+                                background: 'rgba(0,0,0,0.15)',
+                                transition: 'transform 0.2s ease-in-out'
+                              }}
+                            />
                           )}
-                          <span style={{ color: isChecked ? '#fff' : 'var(--text-primary)' }}>
+                          <span style={{ color: isChecked ? '#fff' : 'var(--text-primary)', fontWeight: '500' }}>
                             {opt.text}
                           </span>
                         </div>
