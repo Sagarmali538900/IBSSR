@@ -79,7 +79,7 @@ export async function POST(request) {
           hour12: true
         });
 
-        const subject = `Psychological Assessment Assigned: ${exam.title}`;
+        const subject = `Invitation: ${exam.title} Assessment`;
         const { html, text } = getAssignmentEmail(exam.title, formattedDate, finalCode);
 
         try {

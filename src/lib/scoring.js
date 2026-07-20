@@ -100,7 +100,7 @@ export async function sendCandidateReportEmail(sessionId, resultObj = null) {
 
   const sectionResults = await SectionResult.find({ examResultId: result._id }).populate('sectionId');
 
-  const subject = `Your Psychological Assessment Result: ${exam.title}`;
+  const subject = `Your results for: ${exam.title}`;
   
   const { html, text } = getResultsEmail(
     candidate.fullName,
