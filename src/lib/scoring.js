@@ -8,6 +8,7 @@ import {
   ExamSession,
   CandidateAnswer
 } from './models';
+import { sendEmail } from './mail.js';
 
 export async function calculateAndFinalizeResults(sessionId) {
   // Prevent duplicate calculations
@@ -112,9 +113,19 @@ export async function sendCandidateReportEmail(sessionId, resultObj = null) {
   
   body += `\nThank you,\nIBSSR Examination Team\n`;
 
-  // Mock sending email
-  const status = 'Sent (Mocked)';
-  console.log(`[EMAIL DISPATCH] To: ${candidate.email} | Subject: ${subject}\nBody:\n${body}`);
+  // Send SMTP email
+  let status = 'Sent';
+  try {
+    const info = await sendEmail({
+      to: candidate.email,
+      subject,
+      text: body
+    });
+    status = info.status; // 'Sent' or 'Mocked'
+  } catch (err) {
+    status = 'Failed';
+    console.error('Failed to send candidate report email via SMTP:', err);
+  }
 
   // Create SentEmailLog
   await SentEmailLog.create({

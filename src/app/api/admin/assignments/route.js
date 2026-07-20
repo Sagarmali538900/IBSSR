@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { ExamAssignment, Exam } from '@/lib/models';
+import { sendEmail } from '@/lib/mail';
 
 export async function POST(request) {
   try {
@@ -65,6 +66,43 @@ export async function POST(request) {
           assignedEmail: email,
           createdBy: session.userId
         });
+
+        // Send assignment email with date and time
+        const now = new Date();
+        const formattedDate = now.toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+
+        const subject = `Psychological Assessment Assigned: ${exam.title}`;
+        const textBody = `Hello,\n\n` +
+          `You have been assigned to take the psychological assessment '${exam.title}' on the IBSSR Portal.\n\n` +
+          `Assessment Details:\n` +
+          `- Exam: ${exam.title}\n` +
+          `- Date & Time Assigned: ${formattedDate} (IST)\n` +
+          `- Your Access Code: ${finalCode}\n\n` +
+          `Instructions to start the test:\n` +
+          `1. Go to the examination portal: https://ibssr.vercel.app\n` +
+          `2. Enter your unique Access Code: ${finalCode}\n` +
+          `3. Complete the registration form and start the test.\n\n` +
+          `Please make sure you take the assessment in a quiet environment.\n\n` +
+          `Best regards,\n` +
+          `IBSSR Examination Team`;
+
+        try {
+          await sendEmail({
+            to: email,
+            subject,
+            text: textBody
+          });
+        } catch (err) {
+          console.error(`Failed to send assignment notification to ${email}:`, err.message);
+        }
+
         createdCount++;
       } else {
         skippedCount++;
