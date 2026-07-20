@@ -3,6 +3,7 @@ import dbConnect from '@/lib/db';
 import { verifyToken, hashPassword } from '@/lib/auth';
 import { User } from '@/lib/models';
 import { sendEmail } from '@/lib/mail';
+import { getFranchiseWelcomeEmail } from '@/lib/emailTemplates';
 
 export async function POST(request) {
   try {
@@ -39,22 +40,14 @@ export async function POST(request) {
 
     // Send welcome email with login credentials to franchise
     const subject = `IBSSR Portal: Franchise Account Created`;
-    const textBody = `Hello,\n\n` +
-      `Your administrative/franchise account has been successfully created on the IBSSR Portal.\n\n` +
-      `Login Credentials:\n` +
-      `- Username: ${username}\n` +
-      `- Password: ${password}\n\n` +
-      `To log in and access your dashboard:\n` +
-      `1. Go to: https://ibssr.vercel.app/login\n` +
-      `2. Log in using your username and password.\n\n` +
-      `Best regards,\n` +
-      `IBSSR Examination Team`;
+    const { html, text } = getFranchiseWelcomeEmail(username, password);
 
     try {
       await sendEmail({
         to: email,
         subject,
-        text: textBody
+        text,
+        html
       });
     } catch (err) {
       console.error(`Failed to send franchise welcome email to ${email}:`, err.message);

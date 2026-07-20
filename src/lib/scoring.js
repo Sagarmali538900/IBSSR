@@ -9,6 +9,7 @@ import {
   CandidateAnswer
 } from './models';
 import { sendEmail } from './mail.js';
+import { getResultsEmail } from './emailTemplates.js';
 
 export async function calculateAndFinalizeResults(sessionId) {
   // Prevent duplicate calculations
@@ -101,17 +102,12 @@ export async function sendCandidateReportEmail(sessionId, resultObj = null) {
 
   const subject = `Your Psychological Assessment Result: ${exam.title}`;
   
-  let body = `Hello ${candidate.fullName},\n\n`;
-  body += `Thank you for completing the '${exam.title}' on our portal.\n\n`;
-  body += `--- ASSESSMENT RESULTS ---\n`;
-  body += `Overall Score: ${result.overallScorePercentage}%\n\n`;
-  body += `Section-wise breakdown:\n`;
-  
-  for (const secRes of sectionResults) {
-    body += `- ${secRes.sectionId.name}: ${secRes.scorePercentage}%\n`;
-  }
-  
-  body += `\nThank you,\nIBSSR Examination Team\n`;
+  const { html, text } = getResultsEmail(
+    candidate.fullName,
+    exam.title,
+    result.overallScorePercentage,
+    sectionResults
+  );
 
   // Send SMTP email
   let status = 'Sent';
@@ -119,7 +115,8 @@ export async function sendCandidateReportEmail(sessionId, resultObj = null) {
     const info = await sendEmail({
       to: candidate.email,
       subject,
-      text: body
+      text,
+      html
     });
     status = info.status; // 'Sent' or 'Mocked'
   } catch (err) {
@@ -131,7 +128,7 @@ export async function sendCandidateReportEmail(sessionId, resultObj = null) {
   await SentEmailLog.create({
     recipientEmail: candidate.email,
     subject,
-    body,
+    body: text,
     sentAt: new Date(),
     status
   });
