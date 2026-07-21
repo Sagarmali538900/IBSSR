@@ -3,6 +3,7 @@ import Link from 'next/link';
 import dbConnect from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { Exam, Candidate, ExamSession, ExamResult, ExamAssignment } from '@/lib/models';
+import DashboardCharts from './DashboardCharts';
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
@@ -19,6 +20,8 @@ export default async function DashboardPage() {
   let completedSessions = 0;
   let avgScore = 0.0;
   let recentResults = [];
+  let assignmentIds = [];
+  let sessionIds = [];
 
   if (isOwner) {
     totalExams = await Exam.countDocuments();
@@ -47,14 +50,14 @@ export default async function DashboardPage() {
     totalExams = await Exam.countDocuments({ createdBy: userId });
 
     const assignments = await ExamAssignment.find({ createdBy: userId }).select('_id');
-    const assignmentIds = assignments.map(a => a._id);
+    assignmentIds = assignments.map(a => a._id);
 
     totalCandidates = (await ExamSession.distinct('candidateId', { assignmentId: { $in: assignmentIds } })).length;
     totalSessions = await ExamSession.countDocuments({ assignmentId: { $in: assignmentIds } });
     completedSessions = await ExamSession.countDocuments({ assignmentId: { $in: assignmentIds }, status: 'completed' });
 
     const sessions = await ExamSession.find({ assignmentId: { $in: assignmentIds } }).select('_id');
-    const sessionIds = sessions.map(s => s._id);
+    sessionIds = sessions.map(s => s._id);
 
     const resultStats = await ExamResult.aggregate([
       { $match: { sessionId: { $in: sessionIds } } },
@@ -77,6 +80,89 @@ export default async function DashboardPage() {
 
   const activeSessions = totalSessions - completedSessions;
   avgScore = Math.round(avgScore * 10) / 10; // Round to 1 decimal place
+
+  // --- 1. Fetch Monthly Completions Data (last 6 months) ---
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  sixMonthsAgo.setDate(1);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
+
+  const completionsMatchQuery = isOwner
+    ? { status: 'completed', completedAt: { $gte: sixMonthsAgo } }
+    : { _id: { $in: sessionIds }, status: 'completed', completedAt: { $gte: sixMonthsAgo } };
+
+  const monthlyCompletions = await ExamSession.aggregate([
+    { $match: completionsMatchQuery },
+    {
+      $group: {
+        _id: {
+          year: { $year: '$completedAt' },
+          month: { $month: '$completedAt' }
+        },
+        count: { $sum: 1 }
+      }
+    },
+    { $sort: { '_id.year': 1, '_id.month': 1 } }
+  ]);
+
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthlyData = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1; // 1-indexed month
+    
+    const match = monthlyCompletions.find(item => item._id.year === y && item._id.month === m);
+    monthlyData.push({
+      label: `${monthNames[m - 1]} ${y}`,
+      count: match ? match.count : 0
+    });
+  }
+
+  // --- 2. Fetch Average Scores by Exam ---
+  const averagesMatchQuery = isOwner
+    ? {}
+    : { sessionId: { $in: sessionIds } };
+
+  const examAveragesRaw = await ExamResult.aggregate([
+    { $match: averagesMatchQuery },
+    {
+      $lookup: {
+        from: 'examsessions',
+        localField: 'sessionId',
+        foreignField: '_id',
+        as: 'session'
+      }
+    },
+    { $unwind: '$session' },
+    {
+      $lookup: {
+        from: 'exams',
+        localField: 'session.examId',
+        foreignField: '_id',
+        as: 'exam'
+      }
+    },
+    { $unwind: '$exam' },
+    {
+      $group: {
+        _id: '$exam._id',
+        title: { $first: '$exam.title' },
+        avgScore: { $avg: '$overallScorePercentage' },
+        count: { $sum: 1 }
+      }
+    },
+    { $sort: { count: -1 } },
+    { $limit: 5 }
+  ]);
+
+  const examAverages = examAveragesRaw.map(item => ({
+    _id: item._id.toString(),
+    title: item.title,
+    avgScore: item.avgScore || 0,
+    count: item.count
+  }));
 
   return (
     <div>
@@ -110,6 +196,9 @@ export default async function DashboardPage() {
           <div className="metric-label">Average Score</div>
         </div>
       </div>
+
+      {/* Charts Section */}
+      <DashboardCharts monthlyData={monthlyData} examAverages={examAverages} />
 
       {/* Recent Activity Table */}
       <div className="glass-card" style={{ marginTop: '2.5rem' }}>
