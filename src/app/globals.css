@@ -173,6 +173,14 @@ h1, h2, h3, h4, h5, h6 {
     transform: scale(1.02);
 }
 
+.nav-hamburger {
+    display: none;
+}
+
+.nav-user-info {
+    font-weight: 500;
+}
+
 .nav-links {
     display: flex;
     gap: 1.25rem;
@@ -757,20 +765,80 @@ html.dark .theme-toggle-btn:hover {
     }
 
     .navbar {
-        padding: 1rem;
+        padding: 1rem 1.5rem;
     }
 
     .nav-brand {
         font-size: 1.35rem;
     }
 
+    .nav-hamburger {
+        display: flex !important;
+    }
+
     .nav-links {
-        gap: 0.5rem;
+        display: none; /* Hide by default on mobile */
+        flex-direction: column;
+        align-items: stretch;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--glass-bg);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        padding: 1.5rem;
+        gap: 0.75rem;
+        border-bottom: 1px solid var(--glass-border);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        z-index: 105;
+        border-radius: 0 0 16px 16px;
+    }
+
+    html.dark .nav-links {
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .nav-links.open {
+        display: flex; /* Show dropdown when menu toggled open */
+        animation: slideDownNav 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes slideDownNav {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .nav-link {
-        padding: 0.4rem 0.6rem;
-        font-size: 0.85rem;
+        display: block;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        width: 100%;
+        text-align: center;
+    }
+
+    .nav-user-info {
+        text-align: center;
+        padding: 0.5rem 0;
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        margin: 0.25rem 0;
+    }
+
+    html.dark .nav-user-info {
+        border-top-color: rgba(255, 255, 255, 0.06);
+        border-bottom-color: rgba(255, 255, 255, 0.06);
+    }
+
+    .nav-logout-btn {
+        width: 100%;
+        padding: 0.75rem 1rem;
     }
 
     .glass-card {
