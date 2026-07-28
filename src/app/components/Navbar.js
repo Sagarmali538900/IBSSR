@@ -21,7 +21,7 @@ export default function Navbar({ username, isSuperuser }) {
         onClick={toggleMenu}
         aria-label="Toggle navigation menu"
         style={{
-          display: 'none', // Managed by media query in CSS (blocks on desktop, flex on mobile)
+          display: 'none', // Managed by media query in CSS
           background: 'none',
           border: 'none',
           cursor: 'pointer',
@@ -93,21 +93,17 @@ export default function Navbar({ username, isSuperuser }) {
           </Link>
         </li>
         
-        {/* User Info */}
-        <li className="nav-user-info" style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          User: <strong style={{ color: 'var(--text-primary)' }}>{username}</strong>
-        </li>
-
-        {/* Theme Toggle Button */}
-        <li style={{ display: 'flex', alignItems: 'center' }}>
-          <ThemeToggle />
-        </li>
-
-        {/* Logout Action */}
-        <li>
-          <a href="/api/auth/logout" className="btn btn-secondary nav-logout-btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
-            Logout
-          </a>
+        {/* Grouped Actions (User badge, ThemeToggle, Logout Button) */}
+        <li className="nav-actions-group">
+          <span className="nav-user-badge">
+            User: <strong>{username}</strong>
+          </span>
+          <div className="nav-btn-row">
+            <ThemeToggle />
+            <a href="/api/auth/logout" className="btn btn-secondary nav-logout-btn">
+              Logout
+            </a>
+          </div>
         </li>
       </ul>
     </nav>
