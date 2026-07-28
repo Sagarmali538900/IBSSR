@@ -649,6 +649,61 @@ h1, h2, h3, h4, h5, h6 {
     border-color: rgba(16, 185, 129, 0.4);
 }
 
+/* --- ACCESSIBILITY & CONTRAST OVERRIDES FOR LIGHT MODE GLASS --- */
+/* Overrides inline color: '#fff' styles to guarantee readability */
+
+.glass-card h1, 
+.glass-card h2, 
+.glass-card h3, 
+.glass-card h4, 
+.glass-card h5, 
+.glass-card h6,
+h1, h2, h3, h4, h5, h6 {
+    color: #0f172a !important;
+}
+
+.glass-card strong {
+    color: #0f172a !important;
+}
+
+/* Ensure body copy inside glass card is a readable dark slate */
+.glass-card p:not(.btn *), 
+.glass-card span:not(.option-indicator):not(.btn *):not(.question-nav-btn *),
+.glass-card div:not(.btn *):not(.timer-progress-bg):not(.timer-progress-bar):not(.section-score-bar):not(.section-score-bar-bg):not(.result-score-circle *) {
+    color: #334155 !important;
+}
+
+/* Checked option state overrides */
+.option-wrapper.checked span {
+    color: #0071e3 !important;
+    font-weight: 700 !important;
+}
+
+/* Ensure inputs label text is readable */
+.form-group label {
+    color: #1e293b !important;
+}
+
+/* Ensure buttons text remains white for contrast */
+.btn-primary, .btn-primary * {
+    color: #ffffff !important;
+}
+
+.btn-danger, .btn-danger * {
+    color: #ffffff !important;
+}
+
+/* Question active navigation text should remain white */
+.question-nav-btn.active, .question-nav-btn.answered {
+    color: #ffffff !important;
+}
+
+/* Ensure result overall score remains white inside the circular graphic */
+.result-score-pct {
+    color: #ffffff !important;
+}
+
+
 /* --- MOBILE SPECIFIC OVERRIDES --- */
 @media (max-width: 768px) {
     body {
