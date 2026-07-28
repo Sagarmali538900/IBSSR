@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { verifyToken } from '@/lib/auth';
+import ThemeToggle from '@/app/components/ThemeToggle';
 import '@/app/globals.css';
 
 export const metadata = {
@@ -57,6 +58,9 @@ export default async function AdminLayout({ children }) {
           </li>
           <li style={{ marginLeft: '1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
             User: <strong>{username}</strong>
+          </li>
+          <li style={{ display: 'flex', alignItems: 'center' }}>
+            <ThemeToggle />
           </li>
           <li>
             <a href="/api/auth/logout" className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
