@@ -90,7 +90,7 @@ export default function AddSectionPage({ params }) {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div className="grid-1-1" style={{ marginBottom: '1.5rem' }}>
             <div className="form-group">
               <label htmlFor="minutes">Duration (Minutes)</label>
               <input

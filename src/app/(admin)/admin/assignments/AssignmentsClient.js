@@ -132,7 +132,7 @@ export default function AssignmentsClient({ assignments, exams }) {
     <div>
       <h1 style={{ fontSize: '2.2rem', marginBottom: '2rem' }}>Candidate Assignments</h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+      <div className="grid-2-1">
         
         {/* Left Column: Active codes table */}
         <div>

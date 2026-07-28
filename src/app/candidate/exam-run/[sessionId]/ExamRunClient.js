@@ -164,7 +164,7 @@ export default function ExamRunClient({
       </div>
 
       {/* Main Grid: Questions Left, Sidebar Progress Right */}
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '2rem', maxWidth: '1200px', margin: '0 auto', width: '100%', alignItems: 'flex-start' }}>
+      <div className="grid-3-1" style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
         
         {/* Left Side: Questions form list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>

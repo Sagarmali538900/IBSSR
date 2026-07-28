@@ -772,8 +772,45 @@ html.dark .theme-toggle-btn:hover {
 
 
 
+/* --- RESPONSIVE LAYOUT GRID UTILITIES (DESKTOP DEFAULTS) --- */
+.grid-2-1 {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    align-items: flex-start;
+}
+
+.grid-1-2 {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 2rem;
+    align-items: flex-start;
+}
+
+.grid-3-1 {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    gap: 2rem;
+    align-items: flex-start;
+}
+
+.grid-1-1 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
 /* --- MOBILE SPECIFIC OVERRIDES --- */
 @media (max-width: 768px) {
+    /* Collapse all layout grids to single column on mobile */
+    .grid-2-1,
+    .grid-1-2,
+    .grid-3-1,
+    .grid-1-1 {
+        grid-template-columns: 1fr !important;
+        gap: 1.25rem !important;
+    }
+
     body {
         /* Optimize background blend performance on mobile */
         background: #f4f5f9;

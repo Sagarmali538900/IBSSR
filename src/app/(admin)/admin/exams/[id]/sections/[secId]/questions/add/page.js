@@ -128,7 +128,7 @@ export default function AddQuestionPage({ params }) {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          <div className="grid-1-1" style={{ marginBottom: '1.5rem' }}>
             <div className="form-group">
               <label htmlFor="questionType">Question Type</label>
               <select

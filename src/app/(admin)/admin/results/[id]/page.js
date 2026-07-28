@@ -100,7 +100,7 @@ export default async function ResultDetailPage({ params }) {
         </span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem', flexWrap: 'wrap', marginBottom: '3rem' }}>
+      <div className="grid-1-2" style={{ marginBottom: '3rem' }}>
         
         {/* Left Side: Score Metric Card */}
         <div className="glass-card" style={{ textAlign: 'center', height: 'fit-content' }}>
