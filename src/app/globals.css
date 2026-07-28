@@ -720,6 +720,29 @@ h1, h2, h3, h4, h5, h6 {
     text-decoration: underline;
 }
 
+/* Theme Toggle Button Styles */
+.theme-toggle-btn {
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: var(--text-primary);
+}
+
+.theme-toggle-btn:hover {
+    background: rgba(0, 0, 0, 0.09);
+    transform: scale(1.08);
+}
+
+html.dark .theme-toggle-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+}
+
+html.dark .theme-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+
 
 
 /* --- MOBILE SPECIFIC OVERRIDES --- */

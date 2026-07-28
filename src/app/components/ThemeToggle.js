@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react';
 
 export default function ThemeToggle() {
   const [theme, setTheme] = useState('light');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    
     // Check local storage or system default
     const savedTheme = localStorage.getItem('theme');
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -32,22 +35,23 @@ export default function ThemeToggle() {
     }
   };
 
+  // Prevent hydration mismatch by returning a placeholder of the same size
+  if (!mounted) {
+    return <div style={{ width: '38px', height: '38px' }} />;
+  }
+
   return (
     <button
       onClick={toggleTheme}
       title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
       style={{
-        background: 'rgba(255, 255, 255, 0.08)',
-        border: '1px solid var(--glass-border)',
         borderRadius: '50%',
         width: '38px',
         height: '38px',
         display: 'flex',
         alignItems: 'center',
-        justifycontent: 'center', // Wait, typo check: justifyContent, not justifycontent!
         justifyContent: 'center',
         cursor: 'pointer',
-        color: 'var(--text-primary)',
         transition: 'all 0.2s ease',
         padding: 0
       }}
@@ -65,7 +69,6 @@ export default function ThemeToggle() {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{ transition: 'transform 0.5s ease' }}
         >
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
@@ -81,7 +84,6 @@ export default function ThemeToggle() {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{ transition: 'transform 0.5s ease', transform: 'rotate(180deg)' }}
         >
           <circle cx="12" cy="12" r="5" />
           <line x1="12" y1="1" x2="12" y2="3" />
