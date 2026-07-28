@@ -703,6 +703,19 @@ h1, h2, h3, h4, h5, h6 {
     color: #ffffff !important;
 }
 
+/* Ensure all link anchor tags inside glass cards are readable royal blue */
+.glass-card a:not(.btn):not(.nav-brand):not(.nav-link) {
+    color: var(--primary) !important;
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.glass-card a:not(.btn):not(.nav-brand):not(.nav-link):hover {
+    color: #0056b3 !important;
+    text-decoration: underline;
+}
+
+
 
 /* --- MOBILE SPECIFIC OVERRIDES --- */
 @media (max-width: 768px) {
