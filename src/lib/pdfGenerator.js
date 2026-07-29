@@ -172,7 +172,7 @@ export async function generatePdfReport(sessionId) {
          .fill();
     });
 
-    drawLogo(120, 160, 50);
+    drawLogo(135, 175, 75);
 
     doc.fillColor('#0f172a')
        .fontSize(36)

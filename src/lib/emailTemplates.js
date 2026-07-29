@@ -470,10 +470,15 @@ export function getResultsEmail(candidateName, examTitle, overallScore, sectionR
         <p>Dear ${candidateName},</p>
         <p>Thank you for taking the <strong>${examTitle}</strong> assessment. Your detailed scorecard report has been calculated below:</p>
         
-        <div class="score-circle">
-          <span class="score-pct">${overallScore}%</span>
-          <span class="score-label">Overall Score</span>
-        </div>
+        <!-- Table-based circle layout (highly compatible across all email clients to prevent text overlap) -->
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 25px auto; width: 130px; height: 130px; border-collapse: collapse; background: radial-gradient(circle, #e0e7ff 0%, #c7d2fe 100%); border-radius: 50%; border: 3px solid #6366f1; text-align: center;">
+          <tr>
+            <td valign="middle" align="center" style="height: 130px; vertical-align: middle; padding: 10px;">
+              <div style="font-size: 32px; font-weight: 800; color: #4338ca; line-height: 32px; margin: 0; padding: 0;">${overallScore}%</div>
+              <div style="font-size: 10px; text-transform: uppercase; font-weight: 700; color: #6366f1; letter-spacing: 0.5px; margin-top: 6px; line-height: 12px; padding: 0;">Overall Score</div>
+            </td>
+          </tr>
+        </table>
 
         <h3 style="margin-top: 25px; margin-bottom: 10px; color: #1e293b; font-size: 15px;">Section Breakdown</h3>
         <table class="table">
