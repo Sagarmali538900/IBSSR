@@ -296,13 +296,6 @@ export async function generatePdfReport(sessionId) {
        .font(fontBold)
        .text('Key benefits of the report.', 40, 95);
 
-    // Load benefit icons via fetch (works on Vercel serverless)
-    const benefitIconUrls = [
-      'https://ibssr.vercel.app/uploads/icon_benefit_1.jpg',
-      'https://ibssr.vercel.app/uploads/icon_benefit_2.jpg',
-      'https://ibssr.vercel.app/uploads/icon_benefit_3.jpg',
-      'https://ibssr.vercel.app/uploads/icon_benefit_4.jpg'
-    ];
     const benefitTexts = [
       'Helps to gain a better understanding of your interests, abilities, and adaptability levels align with your career.',
       'Helps to identify your abilities and adaptability levels that require improvement.',
@@ -310,26 +303,36 @@ export async function generatePdfReport(sessionId) {
       'Helps to attain long-term satisfaction with the right choice of career.'
     ];
 
-    // Pre-fetch icon buffers
-    const iconBuffers = await Promise.all(
-      benefitIconUrls.map(url => fetch(url).then(r => r.ok ? r.arrayBuffer().then(Buffer.from) : null).catch(() => null))
-    );
-
     benefitTexts.forEach((b, i) => {
-      const blockY = 150 + i * 155;
-      try {
-        if (iconBuffers[i]) {
-          doc.image(iconBuffers[i], 40, blockY, { width: 70, height: 70 });
-        } else {
-          doc.fillColor('#e0f2fe').circle(75, blockY + 35, 30).fill();
-        }
-      } catch (e) {
-        doc.fillColor('#e0f2fe').circle(75, blockY + 35, 30).fill();
-      }
-      doc.fillColor('#334155')
+      const blockY = 160 + i * 145;
+
+      // Colored pointer circle
+      doc.fillColor('#0071e3').circle(55, blockY + 10, 10).fill();
+
+      // Arrow/pointer line from circle
+      doc.lineWidth(2)
+         .strokeColor('#0071e3')
+         .moveTo(65, blockY + 10)
+         .lineTo(85, blockY + 10)
+         .stroke();
+
+      // Arrow head
+      doc.fillColor('#0071e3')
+         .polygon([85, blockY + 5], [95, blockY + 10], [85, blockY + 15])
+         .fill();
+
+      // Benefit text
+      doc.fillColor('#0f172a')
          .fontSize(12)
-         .font(fontRegular)
-         .text(b, 130, blockY + 20, { width: 415, lineGap: 4 });
+         .font(fontBold)
+         .text(b, 105, blockY + 3, { width: 440, lineGap: 4 });
+
+      // Underline separator
+      doc.lineWidth(0.5)
+         .strokeColor('#e2e8f0')
+         .moveTo(40, blockY + 55)
+         .lineTo(555, blockY + 55)
+         .stroke();
     });
 
     // IBSSR watermark in center bottom
@@ -337,54 +340,10 @@ export async function generatePdfReport(sessionId) {
     drawFooterDecoration(3);
 
     // =========================================================================
-    // PAGE 4: CAREER SAATHI MODEL (ICEBERG DIAGRAM)
+    // PAGE 4: CAREER STREAM INDICATOR (BAR CHART)
     // =========================================================================
     doc.addPage();
     drawHeaderDecoration(4);
-
-    // Page title
-    doc.fillColor('#1e1b4b')
-       .fontSize(28)
-       .font(fontBold)
-       .text('Career Saathi', 200, 90, { align: 'center', width: 300 });
-
-    doc.fillColor('#1e1b4b')
-       .fontSize(28)
-       .font(fontBold)
-       .text('Model', 200, 122, { align: 'center', width: 300 });
-
-    // === ICEBERG IMAGE (fetched from URL for Vercel compatibility) ===
-    let icebergBuf = null;
-    try {
-      const iceRes = await fetch('https://ibssr.vercel.app/uploads/iceberg_model.jpg');
-      if (iceRes.ok) icebergBuf = Buffer.from(await iceRes.arrayBuffer());
-    } catch (e) { /* ignore */ }
-
-    try {
-      if (icebergBuf) {
-        doc.image(icebergBuf, 55, 185, { width: 485, height: 510 });
-      } else {
-        // Fallback vector if image fails
-        doc.fillColor('#e0f2fe').rect(55, 185, 485, 255).fill();
-        doc.fillColor('#0369a1').rect(55, 440, 485, 255).fill();
-        doc.fillColor('#f0f9ff').opacity(0.9).polygon([297, 200], [160, 435], [434, 435]).fill();
-        doc.opacity(1);
-        doc.fillColor('#bae6fd').opacity(0.7).polygon([297, 440], [105, 685], [489, 685]).fill();
-        doc.opacity(1);
-      }
-    } catch (e) {
-      doc.fillColor('#e0f2fe').rect(55, 185, 485, 255).fill();
-    }
-
-    // IBSSR logo bottom right corner
-    drawLogo(460, 720, 25);
-    drawFooterDecoration(4);
-
-    // =========================================================================
-    // PAGE 5: CAREER STREAM INDICATOR (BAR CHART)
-    // =========================================================================
-    doc.addPage();
-    drawHeaderDecoration(5);
 
     doc.fillColor('#0f172a')
        .fontSize(18)
@@ -477,13 +436,13 @@ export async function generatePdfReport(sessionId) {
          { width: 515, lineGap: 4 }
        );
 
-    drawFooterDecoration(5);
+    drawFooterDecoration(4);
 
     // =========================================================================
-    // PAGE 6: COGNITIVE ABILITY ASSESSMENT (BAR CHART)
+    // PAGE 5: COGNITIVE ABILITY ASSESSMENT (BAR CHART)
     // =========================================================================
     doc.addPage();
-    drawHeaderDecoration(6);
+    drawHeaderDecoration(5);
 
     doc.fillColor('#0f172a')
        .fontSize(18)
@@ -568,13 +527,13 @@ export async function generatePdfReport(sessionId) {
          { width: 515, lineGap: 4 }
        );
 
-    drawFooterDecoration(6);
+    drawFooterDecoration(5);
 
     // =========================================================================
-    // PAGE 7: ADAPTABILITY INVENTORY
+    // PAGE 6: ADAPTABILITY INVENTORY
     // =========================================================================
     doc.addPage();
-    drawHeaderDecoration(7);
+    drawHeaderDecoration(6);
 
     doc.fillColor('#0f172a')
        .fontSize(18)
@@ -619,13 +578,13 @@ export async function generatePdfReport(sessionId) {
          .text(item.desc, 40, blockY + 40, { width: 515, lineGap: 4 });
     });
 
-    drawFooterDecoration(7);
+    drawFooterDecoration(6);
 
     // =========================================================================
-    // PAGE 8: COUNSELLOR NOTES, RECOMMENDS & DISCLAIMERS
+    // PAGE 7: COUNSELLOR NOTES, RECOMMENDS & DISCLAIMERS
     // =========================================================================
     doc.addPage();
-    drawHeaderDecoration(8);
+    drawHeaderDecoration(7);
 
     doc.fillColor('#0f172a')
        .fontSize(18)
@@ -681,7 +640,7 @@ export async function generatePdfReport(sessionId) {
          { width: 515, lineGap: 3 }
        );
 
-    drawFooterDecoration(8);
+    drawFooterDecoration(7);
 
     // =========================================================================
     // LAST PAGE: IBSSR BACK COVER
