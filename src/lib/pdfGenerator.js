@@ -296,30 +296,40 @@ export async function generatePdfReport(sessionId) {
        .font(fontBold)
        .text('Key benefits of the report.', 40, 95);
 
-    const benefits = [
-      { icon: '◈', text: 'Helps to gain a better understanding of your interests, abilities, and adaptability levels align with your career.' },
-      { icon: '◉', text: 'Helps to identify your abilities and adaptability levels that require improvement.' },
-      { icon: '⊞', text: 'Provides a variety of career clusters and job role recommendations that correspond with your abilities and interest areas.' },
-      { icon: '◎', text: 'Helps to attain long-term satisfaction with the right choice of career.' }
+    // Load benefit icons via fetch (works on Vercel serverless)
+    const benefitIconUrls = [
+      'https://ibssr.vercel.app/uploads/icon_benefit_1.jpg',
+      'https://ibssr.vercel.app/uploads/icon_benefit_2.jpg',
+      'https://ibssr.vercel.app/uploads/icon_benefit_3.jpg',
+      'https://ibssr.vercel.app/uploads/icon_benefit_4.jpg'
+    ];
+    const benefitTexts = [
+      'Helps to gain a better understanding of your interests, abilities, and adaptability levels align with your career.',
+      'Helps to identify your abilities and adaptability levels that require improvement.',
+      'Provides a variety of career clusters and job role recommendations that correspond with your abilities and interest areas.',
+      'Helps to attain long-term satisfaction with the right choice of career.'
     ];
 
-    benefits.forEach((b, i) => {
-      const blockY = 160 + i * 130;
+    // Pre-fetch icon buffers
+    const iconBuffers = await Promise.all(
+      benefitIconUrls.map(url => fetch(url).then(r => r.ok ? r.arrayBuffer().then(Buffer.from) : null).catch(() => null))
+    );
 
-      // Icon background circle
-      doc.fillColor('#f0f9ff')
-         .circle(75, blockY + 25, 30)
-         .fill();
-
-      doc.fillColor('#0071e3')
-         .fontSize(20)
-         .font(fontBold)
-         .text(b.icon, 63, blockY + 14);
-
+    benefitTexts.forEach((b, i) => {
+      const blockY = 150 + i * 155;
+      try {
+        if (iconBuffers[i]) {
+          doc.image(iconBuffers[i], 40, blockY, { width: 70, height: 70 });
+        } else {
+          doc.fillColor('#e0f2fe').circle(75, blockY + 35, 30).fill();
+        }
+      } catch (e) {
+        doc.fillColor('#e0f2fe').circle(75, blockY + 35, 30).fill();
+      }
       doc.fillColor('#334155')
          .fontSize(12)
          .font(fontRegular)
-         .text(b.text, 120, blockY + 12, { width: 430, lineGap: 4 });
+         .text(b, 130, blockY + 20, { width: 415, lineGap: 4 });
     });
 
     // IBSSR watermark in center bottom
@@ -343,65 +353,28 @@ export async function generatePdfReport(sessionId) {
        .font(fontBold)
        .text('Model', 200, 122, { align: 'center', width: 300 });
 
-    // === ICEBERG VECTOR DIAGRAM ===
-    // Sky background (light blue top half)
-    doc.fillColor('#e0f2fe')
-       .rect(90, 200, 425, 220)
-       .fill();
+    // === ICEBERG IMAGE (fetched from URL for Vercel compatibility) ===
+    let icebergBuf = null;
+    try {
+      const iceRes = await fetch('https://ibssr.vercel.app/uploads/iceberg_model.jpg');
+      if (iceRes.ok) icebergBuf = Buffer.from(await iceRes.arrayBuffer());
+    } catch (e) { /* ignore */ }
 
-    // Water background (darker blue bottom half)
-    doc.fillColor('#0369a1')
-       .rect(90, 420, 425, 250)
-       .fill();
-
-    // ICE cap above water (white triangle pointing down)
-    doc.fillColor('#f0f9ff')
-       .opacity(0.92)
-       .polygon([297, 220], [190, 415], [404, 415])
-       .fill();
-
-    doc.opacity(1);
-
-    // Underwater iceberg (larger darker triangle)
-    doc.fillColor('#bae6fd')
-       .opacity(0.75)
-       .polygon([297, 420], [130, 660], [464, 660])
-       .fill();
-
-    doc.opacity(1);
-
-    // Water line
-    doc.lineWidth(2)
-       .strokeColor('#0c4a6e')
-       .moveTo(90, 420)
-       .lineTo(515, 420)
-       .stroke();
-
-    // Label: Your Career Stream (top of iceberg)
-    doc.fillColor('#1e1b4b')
-       .fontSize(14)
-       .font(fontBold)
-       .text('Your', 240, 285)
-       .text('Career Stream', 210, 305);
-
-    // Underwater labels
-    doc.fillColor('#0c4a6e')
-       .fontSize(11)
-       .font(fontBold)
-       .text('Adaptability', 238, 465);
-
-    doc.fillColor('#0c4a6e')
-       .fontSize(11)
-       .font(fontBold)
-       .text('Cognitive', 245, 525)
-       .text('Ability Assessment', 205, 543);
-
-    doc.fillColor('#0c4a6e')
-       .fontSize(11)
-       .font(fontBold)
-       .text('Career', 254, 600)
-       .text('Stream', 254, 618)
-       .text('Indicator', 252, 636);
+    try {
+      if (icebergBuf) {
+        doc.image(icebergBuf, 55, 185, { width: 485, height: 510 });
+      } else {
+        // Fallback vector if image fails
+        doc.fillColor('#e0f2fe').rect(55, 185, 485, 255).fill();
+        doc.fillColor('#0369a1').rect(55, 440, 485, 255).fill();
+        doc.fillColor('#f0f9ff').opacity(0.9).polygon([297, 200], [160, 435], [434, 435]).fill();
+        doc.opacity(1);
+        doc.fillColor('#bae6fd').opacity(0.7).polygon([297, 440], [105, 685], [489, 685]).fill();
+        doc.opacity(1);
+      }
+    } catch (e) {
+      doc.fillColor('#e0f2fe').rect(55, 185, 485, 255).fill();
+    }
 
     // IBSSR logo bottom right corner
     drawLogo(460, 720, 25);
