@@ -199,7 +199,7 @@ export async function generatePdfReport(sessionId) {
     });
 
     // Clean logo placement (no trapezoidal banner)
-    drawLogo(120, 160, 50);
+    drawLogo(140, 170, 70);
 
     // Dynamic Exam Title
     doc.fillColor('#0f172a')
