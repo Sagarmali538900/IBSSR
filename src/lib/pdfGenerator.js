@@ -2,8 +2,48 @@ import PDFDocument from 'pdfkit';
 import dbConnect from './db';
 import { ExamSession, ExamResult, SectionResult } from './models';
 
+// In-Memory cache for downloaded font buffers (avoids Vercel filesystem trace restrictions)
+let cachedFonts = null;
+
+async function loadFonts() {
+  if (cachedFonts) return cachedFonts;
+
+  const urls = {
+    interRegular: 'https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfMZg.ttf',
+    outfitRegular: 'https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4TC1C4E.ttf',
+    outfitBold: 'https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4deyC4E.ttf'
+  };
+
+  try {
+    const [interRegRes, outfitRegRes, outfitBoldRes] = await Promise.all([
+      fetch(urls.interRegular),
+      fetch(urls.outfitRegular),
+      fetch(urls.outfitBold)
+    ]);
+
+    const [interRegBuf, outfitRegBuf, outfitBoldBuf] = await Promise.all([
+      interRegRes.arrayBuffer().then(Buffer.from),
+      outfitRegRes.arrayBuffer().then(Buffer.from),
+      outfitBoldRes.arrayBuffer().then(Buffer.from)
+    ]);
+
+    cachedFonts = {
+      interRegular: interRegBuf,
+      outfitRegular: outfitRegBuf,
+      outfitBold: outfitBoldBuf
+    };
+    return cachedFonts;
+  } catch (error) {
+    console.error('Error fetching font buffers at runtime:', error);
+    return null;
+  }
+}
+
 export async function generatePdfReport(sessionId) {
   await dbConnect();
+
+  // Load fonts first
+  const fonts = await loadFonts();
 
   // Fetch session, candidate, exam
   const session = await ExamSession.findById(sessionId)
@@ -29,8 +69,17 @@ export async function generatePdfReport(sessionId) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', (err) => reject(err));
 
-    // Dynamic Y-coordinate track helper
-    let y = 40;
+    // Register font buffers if downloaded successfully
+    const hasFonts = !!fonts;
+    if (hasFonts) {
+      doc.registerFont('Outfit-Regular', fonts.outfitRegular);
+      doc.registerFont('Outfit-Bold', fonts.outfitBold);
+      doc.registerFont('Inter-Regular', fonts.interRegular);
+    }
+
+    const fontBold = hasFonts ? 'Outfit-Bold' : 'Helvetica-Bold';
+    const fontRegular = hasFonts ? 'Inter-Regular' : 'Helvetica';
+    const fontOutfitRegular = hasFonts ? 'Outfit-Regular' : 'Helvetica';
 
     // Helper functions to get score mapping (1 to 10 scale)
     const getScore = (keywords) => {
@@ -67,12 +116,12 @@ export async function generatePdfReport(sessionId) {
 
       doc.fillColor('#0071e3')
          .fontSize(8)
-         .font('Helvetica-Bold')
+         .font(fontBold)
          .text('IBSSR', cx - 14, cy - 8);
 
       doc.fillColor('#64748b')
          .fontSize(4)
-         .font('Helvetica')
+         .font(fontRegular)
          .text('PSYCHOLOGY', cx - 16, cy + 4);
     };
 
@@ -81,11 +130,11 @@ export async function generatePdfReport(sessionId) {
       drawLogo(50, 45, 18);
       doc.fillColor('#0f172a')
          .fontSize(10)
-         .font('Helvetica-Bold')
+         .font(fontBold)
          .text('Institute of Behavioural Social Sciences and Research', 80, 38);
       doc.fillColor('#64748b')
          .fontSize(8)
-         .font('Helvetica')
+         .font(fontRegular)
          .text('IBSSR Psychological Assessment Portal', 80, 50);
 
       doc.lineWidth(0.5)
@@ -105,12 +154,12 @@ export async function generatePdfReport(sessionId) {
 
       doc.fillColor('#94a3b8')
          .fontSize(8)
-         .font('Helvetica')
+         .font(fontRegular)
          .text('© Copyright IBSSR Private Limited. All Rights Reserved.', 40, 790);
 
       doc.fillColor('#94a3b8')
          .fontSize(8)
-         .font('Helvetica-Bold')
+         .font(fontBold)
          .text(`Page 0${pageNum}`, 520, 790);
     };
 
@@ -130,23 +179,23 @@ export async function generatePdfReport(sessionId) {
 
     doc.fillColor('#0f172a')
        .fontSize(36)
-       .font('Helvetica-Bold')
+       .font(fontBold)
        .text('Career Saathi', 60, 280);
 
     doc.fillColor('#334155')
        .fontSize(18)
-       .font('Helvetica-Bold')
+       .font(fontBold)
        .text('Assessment Report', 60, 325);
 
     doc.fillColor('#64748b')
        .fontSize(12)
-       .font('Helvetica')
+       .font(fontRegular)
        .text('Institute of Behavioural\nSocial Sciences and\nResearch (IBSSR)', 60, 390, { lineGap: 4 });
 
     // Page footer notes
     doc.fillColor('#94a3b8')
        .fontSize(9)
-       .font('Helvetica-Bold')
+       .font(fontBold)
        .text('NURTURE . EDUCATE . ACHIEVE', 60, 740);
 
     // =========================================================================
@@ -157,12 +206,12 @@ export async function generatePdfReport(sessionId) {
     
     doc.fillColor('#0f172a')
        .fontSize(22)
-       .font('Helvetica-Bold')
+       .font(fontBold)
        .text('Test Report', 40, 95);
 
     doc.fillColor('#64748b')
        .fontSize(12)
-       .font('Helvetica')
+       .font(fontRegular)
        .text('Career Saathi Model', 40, 120);
 
     // Profile Box Grid (rounded borders)
@@ -175,7 +224,7 @@ export async function generatePdfReport(sessionId) {
     const metaX1 = 60;
     const metaX2 = 320;
     
-    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(11);
+    doc.fillColor('#0f172a').font(fontBold).fontSize(11);
     doc.text('Name:', metaX1, 175);
     doc.text('Age:', metaX1, 210);
     doc.text('Class:', metaX1, 245);
@@ -184,7 +233,7 @@ export async function generatePdfReport(sessionId) {
     doc.text('Place:', metaX2, 210);
     doc.text('Date:', metaX2, 245);
 
-    doc.font('Helvetica').fillColor('#334155');
+    doc.font(fontRegular).fillColor('#334155');
     doc.text(candidate.fullName, metaX1 + 50, 175);
     doc.text('15 Years', metaX1 + 50, 210); // Standard age fallback
     doc.text('10th Standard', metaX1 + 50, 245); // Standard class fallback
@@ -196,12 +245,12 @@ export async function generatePdfReport(sessionId) {
     // Welcome Paragraph
     doc.fillColor('#0f172a')
        .fontSize(13)
-       .font('Helvetica-Bold')
+       .font(fontBold)
        .text(`Dear ${candidate.fullName},`, 40, 320);
 
     doc.fillColor('#334155')
        .fontSize(11)
-       .font('Helvetica')
+       .font(fontRegular)
        .text(
          'Congratulations on successfully completing your assessment. Here is your Career Saathi Assessment report based on the responses that you gave during the assessment. This report will help you in clearing the vagueness that persists while choosing your career stream.\n\nThis report gives a detailed insight about your interest in different career streams, abilities and your adaptability levels. The insights gained through this report will help you in managing your career which is a lifelong process.',
          40,
@@ -212,7 +261,7 @@ export async function generatePdfReport(sessionId) {
     // Key benefits block
     doc.fillColor('#0f172a')
        .fontSize(14)
-       .font('Helvetica-Bold')
+       .font(fontBold)
        .text('Key benefits of the report:', 40, 520);
 
     const benefits = [
@@ -223,8 +272,8 @@ export async function generatePdfReport(sessionId) {
     ];
 
     benefits.forEach((b, i) => {
-      doc.fillColor('#10b981').font('Helvetica-Bold').text('•', 45, 555 + i * 40);
-      doc.fillColor('#334155').font('Helvetica').fontSize(10).text(b, 60, 555 + i * 40, { width: 490, lineGap: 3 });
+      doc.fillColor('#10b981').font(fontBold).text('•', 45, 555 + i * 40);
+      doc.fillColor('#334155').font(fontRegular).fontSize(10).text(b, 60, 555 + i * 40, { width: 490, lineGap: 3 });
     });
 
     drawFooterDecoration(2);
@@ -237,7 +286,7 @@ export async function generatePdfReport(sessionId) {
 
     doc.fillColor('#0f172a')
        .fontSize(18)
-       .font('Helvetica-Bold')
+       .font(fontBold)
        .text('Career Stream Indicator', 40, 95);
 
     // Stream scores
@@ -289,35 +338,35 @@ export async function generatePdfReport(sessionId) {
       // Score Value text inside bar
       doc.fillColor('#ffffff')
          .fontSize(9)
-         .font('Helvetica-Bold')
+         .font(fontBold)
          .text(item.score.toString(), xPos + barWidth / 2 - 4, Math.min(yPos + 5, chartY - 12));
 
       // Bar Label below axis
       doc.fillColor('#334155')
          .fontSize(8)
-         .font('Helvetica-Bold')
+         .font(fontBold)
          .text(item.name, xPos - 12, chartY + 10, { width: barWidth + 24, align: 'center' });
     });
 
     // Reference Range Legend
-    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(11).text('Reference range of scores:', 40, 560);
+    doc.fillColor('#0f172a').font(fontBold).fontSize(11).text('Reference range of scores:', 40, 560);
     
     doc.fillColor('#ef4444').rect(40, 585, 30, 8).fill();
-    doc.fillColor('#334155').font('Helvetica').fontSize(9).text('1-3 Low', 80, 585);
+    doc.fillColor('#334155').font(fontRegular).fontSize(9).text('1-3 Low', 80, 585);
 
     doc.fillColor('#f59e0b').rect(150, 585, 30, 8).fill();
-    doc.fillColor('#334155').font('Helvetica').fontSize(9).text('4-6 Average', 190, 585);
+    doc.fillColor('#334155').font(fontRegular).fontSize(9).text('4-6 Average', 190, 585);
 
     doc.fillColor('#10b981').rect(280, 585, 30, 8).fill();
-    doc.fillColor('#334155').font('Helvetica').fontSize(9).text('7-10 High', 320, 585);
+    doc.fillColor('#334155').font(fontRegular).fontSize(9).text('7-10 High', 320, 585);
 
     // Text Summary details below
-    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(12).text('Dominant Streams Summary:', 40, 630);
+    doc.fillColor('#0f172a').font(fontBold).fontSize(12).text('Dominant Streams Summary:', 40, 630);
     
     // Sort and get highest score
     const highestStream = [...streamData].sort((a,b) => b.score - a.score)[0];
     doc.fillColor('#334155')
-       .font('Helvetica')
+       .font(fontRegular)
        .fontSize(10)
        .text(
          `Your dominant interest lies in "${highestStream.name}" (Score: ${highestStream.score}/10). This indicates that you exhibit a very high affinity towards opportunities in this field. We recommend exploring career clusters, courses, and internship options mapped to this domain for long-term career satisfaction.`,
@@ -336,7 +385,7 @@ export async function generatePdfReport(sessionId) {
 
     doc.fillColor('#0f172a')
        .fontSize(18)
-       .font('Helvetica-Bold')
+       .font(fontBold)
        .text('Cognitive Ability Assessment', 40, 95);
 
     const cognitives = [
@@ -383,32 +432,32 @@ export async function generatePdfReport(sessionId) {
 
       doc.fillColor('#ffffff')
          .fontSize(9)
-         .font('Helvetica-Bold')
+         .font(fontBold)
          .text(item.score.toString(), xPos + cogBarW / 2 - 4, Math.min(yPos + 5, cogChartY - 12));
 
       doc.fillColor('#334155')
          .fontSize(7.5)
-         .font('Helvetica-Bold')
+         .font(fontBold)
          .text(item.name, xPos - 12, cogChartY + 10, { width: cogBarW + 24, align: 'center' });
     });
 
     // Reference Range Legend
-    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(11).text('Reference range of scores:', 40, 560);
+    doc.fillColor('#0f172a').font(fontBold).fontSize(11).text('Reference range of scores:', 40, 560);
     
     doc.fillColor('#ef4444').rect(40, 585, 30, 8).fill();
-    doc.fillColor('#334155').font('Helvetica').fontSize(9).text('1-3 Low', 80, 585);
+    doc.fillColor('#334155').font(fontRegular).fontSize(9).text('1-3 Low', 80, 585);
 
     doc.fillColor('#f59e0b').rect(150, 585, 30, 8).fill();
-    doc.fillColor('#334155').font('Helvetica').fontSize(9).text('4-6 Average', 190, 585);
+    doc.fillColor('#334155').font(fontRegular).fontSize(9).text('4-6 Average', 190, 585);
 
     doc.fillColor('#10b981').rect(280, 585, 30, 8).fill();
-    doc.fillColor('#334155').font('Helvetica').fontSize(9).text('7-10 High', 320, 585);
+    doc.fillColor('#334155').font(fontRegular).fontSize(9).text('7-10 High', 320, 585);
 
     // Text Summary details below
-    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(12).text('Dominant Abilities Summary:', 40, 630);
+    doc.fillColor('#0f172a').font(fontBold).fontSize(12).text('Dominant Abilities Summary:', 40, 630);
     const highestCog = [...cogData].sort((a,b) => b.score - a.score)[0];
     doc.fillColor('#334155')
-       .font('Helvetica')
+       .font(fontRegular)
        .fontSize(10)
        .text(
          `Your highest cognitive ability score is in "${highestCog.name}" (Score: ${highestCog.score}/10). This indicates a strong capability for complex problem solving, processing, and visual-spatial mapping associated with this capability domain.`,
@@ -427,7 +476,7 @@ export async function generatePdfReport(sessionId) {
 
     doc.fillColor('#0f172a')
        .fontSize(18)
-       .font('Helvetica-Bold')
+       .font(fontBold)
        .text('Student Adaptability Inventory', 40, 95);
 
     const adaptabilities = [
@@ -443,13 +492,13 @@ export async function generatePdfReport(sessionId) {
       // Header row
       doc.fillColor('#0f172a')
          .fontSize(13)
-         .font('Helvetica-Bold')
+         .font(fontBold)
          .text(`${item.name} Adaptability`, 40, blockY);
 
       // Score rating
       doc.fillColor(getScoreColor(item.score))
          .fontSize(11)
-         .font('Helvetica-Bold')
+         .font(fontBold)
          .text(`Score: ${item.score}/10`, 480, blockY);
 
       // Progress bar
@@ -464,7 +513,7 @@ export async function generatePdfReport(sessionId) {
       // Description text
       doc.fillColor('#334155')
          .fontSize(10)
-         .font('Helvetica')
+         .font(fontRegular)
          .text(item.desc, 40, blockY + 40, { width: 515, lineGap: 4 });
     });
 
@@ -478,7 +527,7 @@ export async function generatePdfReport(sessionId) {
 
     doc.fillColor('#0f172a')
        .fontSize(18)
-       .font('Helvetica-Bold')
+       .font(fontBold)
        .text("Counsellor's Use", 40, 95);
 
     // Notes boxes (split boxes)
@@ -489,13 +538,13 @@ export async function generatePdfReport(sessionId) {
        .stroke();
 
     // Notes headers
-    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(11);
+    doc.fillColor('#0f172a').font(fontBold).fontSize(11);
     doc.text("Counsellor's Notes:", 55, 145);
     doc.text("Suggestions & Guidance:", 325, 145);
 
     // Signature details grid below
     const sigY = 410;
-    doc.fillColor('#334155').font('Helvetica-Bold').fontSize(10);
+    doc.fillColor('#334155').font(fontBold).fontSize(10);
     doc.text('Date: ________________________', 40, sigY);
     doc.text('Place: _______________________', 40, sigY + 40);
 
@@ -503,26 +552,26 @@ export async function generatePdfReport(sessionId) {
     doc.text('Counsellor Code: ______________', 310, sigY + 40);
 
     // Recommendations list
-    doc.fillColor('#0f172a').fontSize(13).font('Helvetica-Bold').text('Key Recommendations:', 40, 520);
+    doc.fillColor('#0f172a').fontSize(13).font(fontBold).text('Key Recommendations:', 40, 520);
     const recommends = [
       'Generally, every individual performs differently across various capabilities. The abilities in your report indicate that you have performed satisfactorily.',
       'These capabilities can provide highly successful contributions to your future career and related decision-making processes.',
       'We recommend standard educational mapping counseling to select secondary/higher streams.'
     ];
     recommends.forEach((r, idx) => {
-      doc.fillColor('#0071e3').font('Helvetica-Bold').text('•', 45, 550 + idx * 40);
-      doc.fillColor('#334155').font('Helvetica').fontSize(9.5).text(r, 60, 550 + idx * 40, { width: 490, lineGap: 3 });
+      doc.fillColor('#0071e3').font(fontBold).text('•', 45, 550 + idx * 40);
+      doc.fillColor('#334155').font(fontRegular).fontSize(9.5).text(r, 60, 550 + idx * 40, { width: 490, lineGap: 3 });
     });
 
     // Disclaimer footer
     doc.fillColor('#0f172a')
        .fontSize(10)
-       .font('Helvetica-Bold')
+       .font(fontBold)
        .text('Disclaimer:', 40, 690);
 
     doc.fillColor('#64748b')
        .fontSize(8.5)
-       .font('Helvetica')
+       .font(fontRegular)
        .text(
          'Please note that human behavior and motivation levels change with circumstances and life experiences, therefore the results captured in this report are purely based on your responses provided at a particular time frame. We recommend using this report as a guideline, and we also recommend retaking the test in case you feel your circumstances have changed since you took this test.',
          40,
