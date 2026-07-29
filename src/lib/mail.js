@@ -11,7 +11,7 @@ import nodemailer from 'nodemailer';
  * @param {string} [options.html] - HTML content
  * @returns {Promise<{status: string, messageId: string}>}
  */
-export async function sendEmail({ to, subject, text, html }) {
+export async function sendEmail({ to, subject, text, html, attachments }) {
   const host = process.env.SMTP_HOST;
   const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587;
   const user = process.env.SMTP_USER;
@@ -40,7 +40,8 @@ export async function sendEmail({ to, subject, text, html }) {
     to,
     subject,
     text,
-    html
+    html,
+    ...(attachments && { attachments })
   };
 
   try {
