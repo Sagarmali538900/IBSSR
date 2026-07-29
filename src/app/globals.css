@@ -730,9 +730,9 @@ h1, h2, h3, h4, h5, h6 {
     color: #ffffff !important;
 }
 
-/* Ensure result overall score remains white inside the circular graphic */
+/* Ensure result overall score has correct primary theme contrast inside the circular graphic */
 .result-score-pct {
-    color: #ffffff !important;
+    color: var(--primary) !important;
 }
 
 /* Ensure all link anchor tags inside glass cards are readable royal blue */
