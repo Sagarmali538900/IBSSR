@@ -171,16 +171,16 @@ export async function generatePdfReport(sessionId) {
          .fill();
     });
 
-    // Draw the top left trapezoidal banner for the logo
+    // Draw the top left trapezoidal banner attached to the left edge (X = 0)
     doc.fillColor('#f1f5f9')
-       .polygon([40, 0], [210, 0], [165, 190], [85, 190])
+       .polygon([0, 0], [250, 0], [190, 210], [0, 210])
        .fill();
 
-    // Place the logo centered inside the trapezoidal banner
-    drawLogo(125, 95, 38);
+    // Center the logo inside the trapezoid banner (horizontal midpoint at Y=105 is X=110)
+    drawLogo(110, 105, 45);
 
-    // Draw staggered, bent colored stripes on the right (matching the cover page design)
-    const stripeDef = [
+    // Staggered vertical colored stripes definition
+    const leftStripes = [
       { startY: 150, startX: 440, color: '#f59e0b', gapY1: 220, gapY2: 690 },
       { startY: 50,  startX: 458, color: '#ef4444', gapY1: 110, gapY2: 740 },
       { startY: 110, startX: 476, color: '#3b82f6', gapY1: 310, gapY2: 705 },
@@ -188,7 +188,16 @@ export async function generatePdfReport(sessionId) {
       { startY: 180, startX: 512, color: '#10b981', gapY1: 260, gapY2: 795 }
     ];
 
-    stripeDef.forEach(stripe => {
+    const rightStripes = [
+      { startY: 150, startX: 440, color: '#f59e0b', gapY2: 690 },
+      { startY: 50,  startX: 458, color: '#ef4444', gapY2: 740 },
+      { startY: 110, startX: 476, color: '#3b82f6', gapY2: 705 },
+      { startY: 90,  startX: 494, color: '#06b6d4', gapY2: 765 },
+      { startY: 180, startX: 512, color: '#10b981', gapY2: 795 }
+    ];
+
+    // Draw Left Branch (sweeps left from Y = 620 down to Y = 842)
+    leftStripes.forEach(stripe => {
       doc.lineWidth(12)
          .lineCap('butt')
          .strokeColor(stripe.color)
@@ -199,7 +208,7 @@ export async function generatePdfReport(sessionId) {
          .lineTo(stripe.startX - 180, 842)
          .stroke();
 
-      // Draw white gaps/dashes crossing the stripes
+      // Draw white gaps/dashes
       doc.lineWidth(5)
          .strokeColor('#ffffff');
          
@@ -210,11 +219,33 @@ export async function generatePdfReport(sessionId) {
            .stroke();
       }
       
-      // Gap 2 (bent section)
+      // Gap 2 (left-bent section)
       if (stripe.gapY2) {
         const bentY = stripe.gapY2;
-        const t = (bentY - 620) / (842 - 620); // interpolation factor
+        const t = (bentY - 620) / (842 - 620);
         const bentX = stripe.startX - t * 180;
+        doc.moveTo(bentX - 10, bentY)
+           .lineTo(bentX + 10, bentY)
+           .stroke();
+      }
+    });
+
+    // Draw Right Branch (sweeps right from Y = 620 down to Y = 842, creating the tree root split)
+    rightStripes.forEach(stripe => {
+      doc.lineWidth(12)
+         .lineCap('butt')
+         .strokeColor(stripe.color)
+         .moveTo(stripe.startX, 620)
+         .lineTo(stripe.startX + 180, 842)
+         .stroke();
+
+      // Draw white gaps/dashes in the right-bent branch
+      if (stripe.gapY2) {
+        doc.lineWidth(5)
+           .strokeColor('#ffffff');
+        const bentY = stripe.gapY2;
+        const t = (bentY - 620) / (842 - 620);
+        const bentX = stripe.startX + t * 180;
         doc.moveTo(bentX - 10, bentY)
            .lineTo(bentX + 10, bentY)
            .stroke();
