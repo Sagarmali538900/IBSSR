@@ -163,82 +163,61 @@ export async function generatePdfReport(sessionId) {
     // =========================================================================
     // PAGE 1: COVER PAGE
     // =========================================================================
-    // Draw faint vertical columns on the left
-    const cols = [40, 90, 140, 190, 240, 290];
-    cols.forEach(cx => {
-      doc.fillColor('#f8fafc')
-         .rect(cx, 0, 22, 842)
+    // Draw an elegant colored accent stripe on the far right edge of the page
+    const accentX = 580;
+    const accentColors = ['#0071e3', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
+    accentColors.forEach((col, idx) => {
+      doc.fillColor(col)
+         .rect(accentX + idx * 2, 0, 2, 842)
          .fill();
     });
 
-    // Draw the top left trapezoidal banner attached to the left edge (X = 0)
-    doc.fillColor('#f1f5f9')
-       .polygon([0, 0], [240, 0], [180, 190], [0, 190])
-       .fill();
+    // Render the official IBSSR logo at the top left cleanly
+    drawLogo(105, 110, 45);
 
-    // Center the logo inside the trapezoid banner (horizontal midpoint at Y=95 is X=105)
-    drawLogo(105, 95, 38);
-
-    // Staggered vertical colored stripes definition (only left sweeping branch)
-    const stripes = [
-      { startY: 150, startX: 440, color: '#f59e0b', gapY1: 220, gapY2: 690 },
-      { startY: 50,  startX: 458, color: '#ef4444', gapY1: 110, gapY2: 740 },
-      { startY: 110, startX: 476, color: '#3b82f6', gapY1: 310, gapY2: 705 },
-      { startY: 90,  startX: 494, color: '#06b6d4', gapY1: 170, gapY2: 765 },
-      { startY: 180, startX: 512, color: '#10b981', gapY1: 260, gapY2: 795 }
-    ];
-
-    // Draw Left Sweeping Branch with smooth quadratic curves (Bezier curve)
-    stripes.forEach(stripe => {
-      doc.lineWidth(12)
-         .lineCap('butt')
-         .strokeColor(stripe.color)
-         // Draw straight line down to Y = 580
-         .moveTo(stripe.startX, stripe.startY)
-         .lineTo(stripe.startX, 580)
-         // Draw smooth curve to the bottom left (using quadratic curve with control point)
-         .quadraticCurveTo(stripe.startX, 720, stripe.startX - 180, 842)
-         .stroke();
-
-      // Draw white gaps/dashes
-      doc.lineWidth(5)
-         .strokeColor('#ffffff');
-         
-      // Gap 1 (vertical section)
-      if (stripe.gapY1) {
-        doc.moveTo(stripe.startX - 8, stripe.gapY1)
-           .lineTo(stripe.startX + 8, stripe.gapY1)
-           .stroke();
-      }
-      
-      // Gap 2 (smoothly interpolated on the curve)
-      if (stripe.gapY2) {
-        const bentY = stripe.gapY2;
-        const t = (bentY - 580) / (842 - 580);
-        // Quadratic bezier interpolation formula: B(t) = (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
-        const p0x = stripe.startX;
-        const p1x = stripe.startX;
-        const p2x = stripe.startX - 180;
-        const bentX = (1-t)*(1-t)*p0x + 2*(1-t)*t*p1x + t*t*p2x;
-        
-        // Draw slightly sloped gap line to look perpendicular to curve direction
-        doc.moveTo(bentX - 10, bentY - 2)
-           .lineTo(bentX + 10, bentY + 2)
-           .stroke();
-      }
-    });
-
-    // Dynamic Exam Title
-    doc.fillColor('#0f172a')
+    // Main Title Block
+    doc.fillColor('#1e1b4b')
        .fontSize(38)
        .font(fontBold)
-       .text(exam.title, 60, 310);
+       .text('Career Saathi', 60, 240);
 
-    // Organization details at bottom left (matching the real cover layout)
-    doc.fillColor('#0f172a')
-       .fontSize(20)
+    // Elegant divider line
+    doc.lineWidth(2)
+       .strokeColor('#0071e3')
+       .moveTo(60, 290)
+       .lineTo(240, 290)
+       .stroke();
+
+    doc.fillColor('#475569')
+       .fontSize(14)
+       .font(fontRegular)
+       .text('Psychological & Cognitive Assessment Report', 60, 305);
+
+    // Candidate Summary Profile Card in the middle-bottom
+    doc.lineWidth(1)
+       .strokeColor('#e2e8f0')
+       .fillColor('#f8fafc')
+       .roundedRect(60, 360, 460, 110, 8)
+       .fillAndStroke();
+
+    doc.fillColor('#1e1b4b').font(fontBold).fontSize(10);
+    doc.text('ASSESSMENT PROFILE', 80, 380);
+
+    doc.fillColor('#475569').font(fontRegular).fontSize(10);
+    doc.text(`Candidate Name:   ${candidate.fullName}`, 80, 405);
+    doc.text(`Assessment Type:   ${exam.title}`, 80, 425);
+    doc.text(`Date Completed:    ${new Date(result.completedAt).toLocaleDateString()}`, 80, 445);
+
+    // Organization Details at the bottom-left
+    doc.fillColor('#1e1b4b')
+       .fontSize(16)
        .font(fontBold)
-       .text('Institute of Behavioural\nSocial Sciences and\nResearch (IBSSR)', 60, 550, { lineGap: 6 });
+       .text('Institute of Behavioural\nSocial Sciences and\nResearch (IBSSR)', 60, 600, { lineGap: 4 });
+
+    doc.fillColor('#94a3b8')
+       .fontSize(9)
+       .font(fontRegular)
+       .text('NURTURE • EDUCATE • ACHIEVE', 60, 680);
 
     // =========================================================================
     // PAGE 2: TEST REPORT SUMMARY & CONGRATS
