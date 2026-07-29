@@ -10,6 +10,7 @@ import {
 } from './models';
 import { sendEmail } from './mail.js';
 import { getResultsEmail } from './emailTemplates.js';
+import { generatePdfReport } from './pdfGenerator.js';
 
 export async function calculateAndFinalizeResults(sessionId) {
   // Prevent duplicate calculations
@@ -109,15 +110,36 @@ export async function sendCandidateReportEmail(sessionId, resultObj = null) {
     sectionResults
   );
 
+  // Generate the PDF report attachment buffer
+  let pdfBuffer = null;
+  try {
+    pdfBuffer = await generatePdfReport(sessionId);
+  } catch (pdfErr) {
+    console.error('Failed to generate PDF report buffer for email attachment:', pdfErr);
+  }
+
   // Send SMTP email
   let status = 'Sent';
   try {
-    const info = await sendEmail({
+    const emailPayload = {
       to: candidate.email,
       subject,
       text,
       html
-    });
+    };
+
+    if (pdfBuffer) {
+      const filename = `IBSSR_Assessment_Report_${candidate.fullName.replace(/\s+/g, '_')}.pdf`;
+      emailPayload.attachments = [
+        {
+          filename,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ];
+    }
+
+    const info = await sendEmail(emailPayload);
     status = info.status; // 'Sent' or 'Mocked'
   } catch (err) {
     status = 'Failed';

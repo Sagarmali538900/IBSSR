@@ -33,9 +33,9 @@ export default async function CompletedPage({ params }) {
   const sectionResults = await SectionResult.find({ examResultId: result._id }).populate('sectionId').lean();
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', padding: '2rem', background: 'radial-gradient(circle at 30% 30%, #0d0a1e, #03030a)' }}>
-      <div className="glass-card" style={{ maxWidth: '600px', width: '100%' }}>
-        <h1 style={{ fontSize: '2rem', color: '#fff', marginBottom: '0.5rem' }}>Assessment Completed</h1>
+    <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+      <div className="glass-card" style={{ maxWidth: '650px', width: '100%' }}>
+        <h1 style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>Assessment Completed</h1>
         <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
           Thank you, <strong>{session.candidateId.fullName}</strong>, for completing the <strong>{session.examId.title}</strong> assessment.
         </p>
@@ -47,7 +47,7 @@ export default async function CompletedPage({ params }) {
           </div>
         </div>
 
-        <h3 style={{ color: '#fff', marginBottom: '1rem' }}>Section Breakdown</h3>
+        <h3 style={{ marginBottom: '1.25rem' }}>Section Breakdown</h3>
         <div className="table-container" style={{ marginBottom: '2rem' }}>
           <table className="custom-table">
             <thead>
@@ -67,8 +67,18 @@ export default async function CompletedPage({ params }) {
           </table>
         </div>
 
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          A detailed scorecard has been emailed to you. Please check your inbox for further instructions.
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+          <a 
+            href={`/api/results/${sessionId}/pdf`} 
+            className="btn btn-primary" 
+            style={{ width: '100%', justifyContent: 'center', fontSize: '1rem' }}
+          >
+            Download PDF Report
+          </a>
+        </div>
+
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', textAlign: 'center' }}>
+          A copy of your PDF report has also been dispatched to <strong>{session.candidateId.email}</strong>.
         </p>
       </div>
     </div>
