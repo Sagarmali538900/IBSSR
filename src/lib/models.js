@@ -62,6 +62,8 @@ const CandidateSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true },
   mobileNumber: { type: String, required: true },
+  dob: { type: String, default: '' },
+  education: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });
 

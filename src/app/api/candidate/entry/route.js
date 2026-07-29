@@ -5,7 +5,7 @@ import { ExamAssignment, Candidate, ExamSession } from '@/lib/models';
 export async function POST(request) {
   try {
     await dbConnect();
-    const { step, examCode, fullName, email, mobileNumber } = await request.json();
+    const { step, examCode, fullName, email, mobileNumber, dob, education } = await request.json();
 
     if (!examCode) {
       return NextResponse.json({ message: 'Exam access code is required.' }, { status: 400 });
@@ -33,6 +33,8 @@ export async function POST(request) {
       const emailLower = email.trim().toLowerCase();
       const nameTrimmed = fullName.trim();
       const mobileTrimmed = mobileNumber.trim();
+      const dobTrimmed = dob ? dob.trim() : '';
+      const eduTrimmed = education ? education.trim() : '';
 
       // Check if email is assigned to this code
       const assignment = await ExamAssignment.findOne({ examCode: codeUpper, assignedEmail: emailLower }).populate('examId');
@@ -46,8 +48,24 @@ export async function POST(request) {
         candidate = await Candidate.create({
           fullName: nameTrimmed,
           email: emailLower,
-          mobileNumber: mobileTrimmed
+          mobileNumber: mobileTrimmed,
+          dob: dobTrimmed,
+          education: eduTrimmed
         });
+      } else {
+        // Auto-update candidate fields if they changed
+        let needsSave = false;
+        if (dobTrimmed && candidate.dob !== dobTrimmed) {
+          candidate.dob = dobTrimmed;
+          needsSave = true;
+        }
+        if (eduTrimmed && candidate.education !== eduTrimmed) {
+          candidate.education = eduTrimmed;
+          needsSave = true;
+        }
+        if (needsSave) {
+          await candidate.save();
+        }
       }
 
       // Check for existing session on this code

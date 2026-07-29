@@ -14,6 +14,8 @@ export default function CandidateEntryPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
+  const [dob, setDob] = useState('');
+  const [education, setEducation] = useState('');
 
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -51,7 +53,7 @@ export default function CandidateEntryPage() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!fullName.trim() || !email.trim() || !mobileNumber.trim()) {
+    if (!fullName.trim() || !email.trim() || !mobileNumber.trim() || !dob.trim() || !education.trim()) {
       setErrorMsg('All registration fields are required.');
       return;
     }
@@ -67,7 +69,9 @@ export default function CandidateEntryPage() {
           examCode,
           fullName,
           email,
-          mobileNumber
+          mobileNumber,
+          dob,
+          education
         })
       });
 
@@ -183,7 +187,7 @@ export default function CandidateEntryPage() {
               </small>
             </div>
 
-            <div className="form-group" style={{ marginBottom: '2rem' }}>
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
               <label htmlFor="mobile">Mobile Number</label>
               <input
                 type="tel"
@@ -192,6 +196,33 @@ export default function CandidateEntryPage() {
                 placeholder="Enter your contact number"
                 value={mobileNumber}
                 onChange={(e) => setMobileNumber(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label htmlFor="dob">Date of Birth</label>
+              <input
+                type="date"
+                id="dob"
+                className="form-control"
+                value={dob}
+                onChange={(e) => setDob(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '2rem' }}>
+              <label htmlFor="education">Education / Standard</label>
+              <input
+                type="text"
+                id="education"
+                className="form-control"
+                placeholder="e.g. 10th Standard, B.Sc, B.Tech, etc."
+                value={education}
+                onChange={(e) => setEducation(e.target.value)}
                 disabled={loading}
                 required
               />

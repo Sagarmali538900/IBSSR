@@ -223,17 +223,17 @@ export async function generatePdfReport(sessionId) {
     
     doc.fillColor('#0f172a').font(fontBold).fontSize(11);
     doc.text('Name:', metaX1, 175);
-    doc.text('Age:', metaX1, 210);
-    doc.text('Class:', metaX1, 245);
+    doc.text('DOB:', metaX1, 210);
+    doc.text('Education:', metaX1, 245);
 
     doc.text('Gender:', metaX2, 175);
     doc.text('Place:', metaX2, 210);
     doc.text('Date:', metaX2, 245);
 
     doc.font(fontRegular).fillColor('#334155');
-    doc.text(candidate.fullName, metaX1 + 50, 175);
-    doc.text('15 Years', metaX1 + 50, 210); // Standard age fallback
-    doc.text('10th Standard', metaX1 + 50, 245); // Standard class fallback
+    doc.text(candidate.fullName, metaX1 + 75, 175);
+    doc.text(candidate.dob || 'N/A', metaX1 + 75, 210);
+    doc.text(candidate.education || 'N/A', metaX1 + 75, 245);
 
     doc.text('Male', metaX2 + 60, 175); // Standard gender fallback
     doc.text('Pune', metaX2 + 60, 210);
