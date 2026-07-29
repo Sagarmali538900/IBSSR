@@ -291,11 +291,19 @@ export async function generatePdfReport(sessionId) {
     doc.addPage();
     drawHeaderDecoration(3);
 
-    doc.fillColor('#0f172a')
-       .fontSize(20)
-       .font(fontBold)
-       .text('Key benefits of the report.', 40, 95);
+    // --- Page header accent bar ---
+    doc.fillColor('#0071e3').rect(40, 85, 4, 32).fill();
+    doc.fillColor('#0f172a').fontSize(22).font(fontBold).text('Key benefits of the report.', 52, 90);
 
+    // Subtitle
+    doc.fillColor('#64748b').fontSize(10).font(fontRegular)
+       .text('This report helps you understand yourself better and make informed career decisions.', 52, 117, { width: 490 });
+
+    // Thin full-width divider under header
+    doc.lineWidth(0.8).strokeColor('#cbd5e1').moveTo(40, 138).lineTo(555, 138).stroke();
+
+    const benefitColors = ['#0071e3', '#10b981', '#f59e0b', '#8b5cf6'];
+    const benefitNumbers = ['01', '02', '03', '04'];
     const benefitTexts = [
       'Helps to gain a better understanding of your interests, abilities, and adaptability levels align with your career.',
       'Helps to identify your abilities and adaptability levels that require improvement.',
@@ -304,39 +312,44 @@ export async function generatePdfReport(sessionId) {
     ];
 
     benefitTexts.forEach((b, i) => {
-      const blockY = 160 + i * 145;
+      const cardX = 40;
+      const cardY = 155 + i * 135;
+      const cardW = 515;
+      const cardH = 115;
+      const accentColor = benefitColors[i];
 
-      // Colored pointer circle
-      doc.fillColor('#0071e3').circle(55, blockY + 10, 10).fill();
+      // Card shadow (faint grey behind card)
+      doc.fillColor('#f1f5f9').roundedRect(cardX + 3, cardY + 3, cardW, cardH, 10).fill();
 
-      // Arrow/pointer line from circle
-      doc.lineWidth(2)
-         .strokeColor('#0071e3')
-         .moveTo(65, blockY + 10)
-         .lineTo(85, blockY + 10)
-         .stroke();
+      // Card background
+      doc.fillColor('#ffffff').roundedRect(cardX, cardY, cardW, cardH, 10).fill();
 
-      // Arrow head
-      doc.fillColor('#0071e3')
-         .polygon([85, blockY + 5], [95, blockY + 10], [85, blockY + 15])
-         .fill();
+      // Left accent border strip
+      doc.fillColor(accentColor).roundedRect(cardX, cardY, 5, cardH, 3).fill();
 
-      // Benefit text
-      doc.fillColor('#0f172a')
-         .fontSize(12)
-         .font(fontBold)
-         .text(b, 105, blockY + 3, { width: 440, lineGap: 4 });
+      // Large faint number watermark background
+      doc.fillColor(accentColor).opacity(0.06)
+         .fontSize(72).font(fontBold)
+         .text(benefitNumbers[i], 430, cardY + 12, { width: 110, align: 'right' });
+      doc.opacity(1);
 
-      // Underline separator
-      doc.lineWidth(0.5)
-         .strokeColor('#e2e8f0')
-         .moveTo(40, blockY + 55)
-         .lineTo(555, blockY + 55)
-         .stroke();
+      // Numbered badge
+      doc.fillColor(accentColor).circle(cardX + 35, cardY + 30, 16).fill();
+      doc.fillColor('#ffffff').fontSize(11).font(fontBold)
+         .text(benefitNumbers[i], cardX + 24, cardY + 23);
+
+      // Benefit heading label
+      const labels = ['Career Understanding', 'Ability Improvement', 'Career Recommendations', 'Long-term Satisfaction'];
+      doc.fillColor('#0f172a').fontSize(13).font(fontBold)
+         .text(labels[i], cardX + 60, cardY + 20);
+
+      // Benefit body text
+      doc.fillColor('#475569').fontSize(10).font(fontRegular)
+         .text(b, cardX + 20, cardY + 52, { width: cardW - 35, lineGap: 4 });
     });
 
     // IBSSR watermark in center bottom
-    drawLogo(297, 710, 30);
+    drawLogo(297, 720, 28);
     drawFooterDecoration(3);
 
     // =========================================================================
