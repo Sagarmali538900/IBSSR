@@ -12,8 +12,13 @@ export default function Navbar({ username, isSuperuser }) {
 
   return (
     <nav className="navbar" style={{ position: 'relative' }}>
-      <Link href="/admin/dashboard" className="nav-brand" onClick={closeMenu}>
-        IBSSR Portal
+      <Link href="/admin/dashboard" className="nav-brand" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <img 
+          src="/ibssr-logo.png" 
+          alt="IBSSR Logo" 
+          style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '50%' }}
+        />
+        <span>IBSSR Portal</span>
       </Link>
 
       {/* Hamburger Toggle Button for Mobile */}

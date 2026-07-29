@@ -50,6 +50,11 @@ function LoginForm() {
     <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
       <div className="glass-card" style={{ width: '100%', maxWidth: '450px' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <img 
+            src="/ibssr-logo.png" 
+            alt="IBSSR Logo" 
+            style={{ width: '70px', height: '70px', objectFit: 'contain', marginBottom: '0.75rem', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.15))' }}
+          />
           <h1 style={{
             fontSize: '1.8rem',
             background: 'linear-gradient(135deg, #a78bfa, #06b6d4)',

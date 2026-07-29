@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import path from 'path';
 import dbConnect from './db';
 import { ExamSession, ExamResult, SectionResult } from './models';
 
@@ -102,27 +103,23 @@ export async function generatePdfReport(sessionId) {
       return '#10b981'; // Green (High)
     };
 
-    // Draw circular vector logo (zero image dependency)
+    // Draw real logo image with automatic vector fallback
     const drawLogo = (cx, cy, radius = 30) => {
-      doc.lineWidth(1.5)
-         .strokeColor('#0071e3')
-         .circle(cx, cy, radius)
-         .stroke();
-         
-      doc.lineWidth(0.5)
-         .strokeColor('#d946ef')
-         .circle(cx, cy, radius - 4)
-         .stroke();
-
-      doc.fillColor('#0071e3')
-         .fontSize(8)
-         .font(fontBold)
-         .text('IBSSR', cx - 14, cy - 8);
-
-      doc.fillColor('#64748b')
-         .fontSize(4)
-         .font(fontRegular)
-         .text('PSYCHOLOGY', cx - 16, cy + 4);
+      try {
+        const logoPath = path.join(process.cwd(), 'public/ibssr-logo.png');
+        const size = radius * 2;
+        doc.image(logoPath, cx - radius, cy - radius, { width: size, height: size });
+      } catch (err) {
+        console.error("Failed to render logo image in PDF:", err);
+        doc.lineWidth(1.5)
+           .strokeColor('#0071e3')
+           .circle(cx, cy, radius)
+           .stroke();
+        doc.fillColor('#0071e3')
+           .fontSize(radius > 25 ? 12 : 8)
+           .font(fontBold)
+           .text('IBSSR', cx - (radius > 25 ? 18 : 14), cy - 4);
+      }
     };
 
     // Draw header decoration block

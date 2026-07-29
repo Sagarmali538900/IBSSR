@@ -35,8 +35,15 @@ export default async function CompletedPage({ params }) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
       <div className="glass-card" style={{ maxWidth: '650px', width: '100%' }}>
-        <h1 style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>Assessment Completed</h1>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <img 
+            src="/ibssr-logo.png" 
+            alt="IBSSR Logo" 
+            style={{ width: '70px', height: '70px', objectFit: 'contain', marginBottom: '0.5rem', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.15))' }}
+          />
+          <h1 style={{ fontSize: '2.2rem', marginBottom: '0.25rem', marginTop: 0 }}>Assessment Completed</h1>
+        </div>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', textAlign: 'center' }}>
           Thank you, <strong>{session.candidateId.fullName}</strong>, for completing the <strong>{session.examId.title}</strong> assessment.
         </p>
 
