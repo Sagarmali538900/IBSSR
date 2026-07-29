@@ -163,75 +163,61 @@ export async function generatePdfReport(sessionId) {
     // =========================================================================
     // PAGE 1: COVER PAGE
     // =========================================================================
-    // Draw faint vertical columns on the left
-    const cols = [40, 90, 140, 190, 240, 290];
-    cols.forEach(cx => {
-      doc.fillColor('#f8fafc')
-         .rect(cx, 0, 22, 842)
-         .fill();
-    });
-
-    // Draw the top left trapezoidal banner attached to the left edge (X = 0)
-    doc.fillColor('#f1f5f9')
-       .polygon([0, 0], [240, 0], [180, 190], [0, 190])
-       .fill();
-
-    // Center the logo inside the trapezoid banner (horizontal midpoint at Y=95 is X=105)
-    drawLogo(105, 95, 38);
-
-    // Straight vertical colored stripes definition with dashes
-    const stripes = [
-      { startY: 150, startX: 440, color: '#f59e0b', gapY1: 220, gapY2: 690 },
-      { startY: 50,  startX: 458, color: '#ef4444', gapY1: 110, gapY2: 740 },
-      { startY: 110, startX: 476, color: '#3b82f6', gapY1: 310, gapY2: 705 },
-      { startY: 90,  startX: 494, color: '#06b6d4', gapY1: 170, gapY2: 765 },
-      { startY: 180, startX: 512, color: '#10b981', gapY1: 260, gapY2: 795 }
+    // Draw straight vertical stripes on the right
+    const stripesX = 420;
+    const stripeColors = ['#0071e3', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
+    
+    // Staggered horizontal gaps/dashes positions for each stripe
+    const gaps = [
+      { y1: 220, y2: 690 },
+      { y1: 110, y2: 740 },
+      { y1: 310, y2: 705 },
+      { y1: 170, y2: 765 },
+      { y1: 260, y2: 795 },
+      { y1: 190, y2: 650 },
+      { y1: 130, y2: 720 }
     ];
 
-    // Draw Straight Vertical stripes all the way to the bottom (Y = 842)
-    stripes.forEach(stripe => {
-      doc.lineWidth(12)
-         .lineCap('butt')
-         .strokeColor(stripe.color)
-         .moveTo(stripe.startX, stripe.startY)
-         .lineTo(stripe.startX, 842)
-         .stroke();
+    stripeColors.forEach((col, idx) => {
+      const sx = stripesX + idx * 16;
+      doc.fillColor(col)
+         .rect(sx, 0, 12, 842)
+         .fill();
 
-      // Draw white gaps/dashes crossing the vertical lines
+      // Draw white gaps/dashes crossing this stripe
       doc.lineWidth(5)
          .strokeColor('#ffffff');
-         
-      if (stripe.gapY1) {
-        doc.moveTo(stripe.startX - 8, stripe.gapY1)
-           .lineTo(stripe.startX + 8, stripe.gapY1)
-           .stroke();
-      }
       
-      if (stripe.gapY2) {
-        doc.moveTo(stripe.startX - 8, stripe.gapY2)
-           .lineTo(stripe.startX + 8, stripe.gapY2)
-           .stroke();
-      }
+      const stripeGaps = gaps[idx] || { y1: 200, y2: 700 };
+      doc.moveTo(sx - 2, stripeGaps.y1)
+         .lineTo(sx + 14, stripeGaps.y1)
+         .stroke();
+         
+      doc.moveTo(sx - 2, stripeGaps.y2)
+         .lineTo(sx + 14, stripeGaps.y2)
+         .stroke();
     });
+
+    // Clean logo placement (no trapezoidal banner)
+    drawLogo(120, 160, 50);
 
     // Dynamic Exam Title
     doc.fillColor('#0f172a')
-       .fontSize(38)
+       .fontSize(36)
        .font(fontBold)
-       .text(exam.title, 60, 310);
+       .text(exam.title, 60, 280);
 
     doc.fillColor('#334155')
        .fontSize(18)
        .font(fontBold)
-       .text('Assessment Report', 60, 355);
+       .text('Assessment Report', 60, 325);
 
-    // Organization details at bottom left (matching the real cover layout)
-    doc.fillColor('#0f172a')
-       .fontSize(20)
-       .font(fontBold)
-       .text('Institute of Behavioural\nSocial Sciences and\nResearch (IBSSR)', 60, 550, { lineGap: 6 });
+    doc.fillColor('#64748b')
+       .fontSize(12)
+       .font(fontRegular)
+       .text('Institute of Behavioural\nSocial Sciences and\nResearch (IBSSR)', 60, 390, { lineGap: 4 });
 
-    // Page tagline at bottom left
+    // Page footer tagline
     doc.fillColor('#94a3b8')
        .fontSize(9)
        .font(fontBold)
