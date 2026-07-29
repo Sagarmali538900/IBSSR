@@ -49,7 +49,7 @@ export default async function CompletedPage({ params }) {
 
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div className="result-score-circle">
-            <div className="result-score-pct">{result.overallScorePercentage}%</div>
+            <div className="result-score-pct" style={{ color: 'var(--primary)' }}>{result.overallScorePercentage}%</div>
             <div className="result-score-label">Overall Score</div>
           </div>
         </div>
