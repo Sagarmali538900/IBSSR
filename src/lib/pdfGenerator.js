@@ -163,37 +163,75 @@ export async function generatePdfReport(sessionId) {
     // =========================================================================
     // PAGE 1: COVER PAGE
     // =========================================================================
-    // Draw vertical fluid stripes on the right
-    const stripesX = 420;
-    const stripeColors = ['#0071e3', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
-    stripeColors.forEach((col, idx) => {
-      doc.fillColor(col)
-         .rect(stripesX + idx * 16, 0, 12, 842)
+    // Draw faint vertical columns on the left
+    const cols = [40, 90, 140, 190, 240, 290];
+    cols.forEach(cx => {
+      doc.fillColor('#f8fafc')
+         .rect(cx, 0, 22, 842)
          .fill();
     });
 
-    drawLogo(135, 175, 75);
+    // Draw the top left trapezoidal banner for the logo
+    doc.fillColor('#f1f5f9')
+       .polygon([40, 0], [210, 0], [165, 190], [85, 190])
+       .fill();
 
+    // Place the logo centered inside the trapezoidal banner
+    drawLogo(125, 95, 38);
+
+    // Draw staggered, bent colored stripes on the right (matching the cover page design)
+    const stripeDef = [
+      { startY: 150, startX: 440, color: '#f59e0b', gapY1: 220, gapY2: 690 },
+      { startY: 50,  startX: 458, color: '#ef4444', gapY1: 110, gapY2: 740 },
+      { startY: 110, startX: 476, color: '#3b82f6', gapY1: 310, gapY2: 705 },
+      { startY: 90,  startX: 494, color: '#06b6d4', gapY1: 170, gapY2: 765 },
+      { startY: 180, startX: 512, color: '#10b981', gapY1: 260, gapY2: 795 }
+    ];
+
+    stripeDef.forEach(stripe => {
+      doc.lineWidth(12)
+         .lineCap('butt')
+         .strokeColor(stripe.color)
+         // Draw straight line down to Y = 620
+         .moveTo(stripe.startX, stripe.startY)
+         .lineTo(stripe.startX, 620)
+         // Draw bent line down to Y = 842
+         .lineTo(stripe.startX - 180, 842)
+         .stroke();
+
+      // Draw white gaps/dashes crossing the stripes
+      doc.lineWidth(5)
+         .strokeColor('#ffffff');
+         
+      // Gap 1 (vertical section)
+      if (stripe.gapY1) {
+        doc.moveTo(stripe.startX - 8, stripe.gapY1)
+           .lineTo(stripe.startX + 8, stripe.gapY1)
+           .stroke();
+      }
+      
+      // Gap 2 (bent section)
+      if (stripe.gapY2) {
+        const bentY = stripe.gapY2;
+        const t = (bentY - 620) / (842 - 620); // interpolation factor
+        const bentX = stripe.startX - t * 180;
+        doc.moveTo(bentX - 10, bentY)
+           .lineTo(bentX + 10, bentY)
+           .stroke();
+      }
+    });
+
+    // Dynamic Exam Title
     doc.fillColor('#0f172a')
-       .fontSize(36)
+       .fontSize(38)
        .font(fontBold)
-       .text('Career Saathi', 60, 280);
+       .text(exam.title, 60, 310);
 
-    doc.fillColor('#334155')
-       .fontSize(18)
+    // Organization details at bottom left (matching the real cover layout)
+    doc.fillColor('#0f172a')
+       .fontSize(20)
        .font(fontBold)
-       .text('Assessment Report', 60, 325);
-
-    doc.fillColor('#64748b')
-       .fontSize(12)
-       .font(fontRegular)
-       .text('Institute of Behavioural\nSocial Sciences and\nResearch (IBSSR)', 60, 390, { lineGap: 4 });
-
-    // Page footer notes
-    doc.fillColor('#94a3b8')
-       .fontSize(9)
-       .font(fontBold)
-       .text('NURTURE . EDUCATE . ACHIEVE', 60, 740);
+       .text('Institute of Behavioural\nSocial Sciences and\nResearch (IBSSR)', 60, 550, { lineGap: 6 });
 
     // =========================================================================
     // PAGE 2: TEST REPORT SUMMARY & CONGRATS
