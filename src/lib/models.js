@@ -111,6 +111,14 @@ const SentEmailLogSchema = new mongoose.Schema({
   status: { type: String, default: 'Sent' }
 });
 
+// 13. PdfTemplate Model Schema — stores image URLs for the 4 static PDF template pages
+const PdfTemplateSchema = new mongoose.Schema({
+  key: { type: String, required: true, unique: true }, // 'cover' | 'key_benefits' | 'career_model' | 'back_cover'
+  label: { type: String, required: true },
+  imageUrl: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now }
+});
+
 export const User = mongoose.models.User || mongoose.model('User', UserSchema);
 export const Exam = mongoose.models.Exam || mongoose.model('Exam', ExamSchema);
 export const Section = mongoose.models.Section || mongoose.model('Section', SectionSchema);
@@ -123,3 +131,5 @@ export const CandidateAnswer = mongoose.models.CandidateAnswer || mongoose.model
 export const ExamResult = mongoose.models.ExamResult || mongoose.model('ExamResult', ExamResultSchema);
 export const SectionResult = mongoose.models.SectionResult || mongoose.model('SectionResult', SectionResultSchema);
 export const SentEmailLog = mongoose.models.SentEmailLog || mongoose.model('SentEmailLog', SentEmailLogSchema);
+export const PdfTemplate = mongoose.models.PdfTemplate || mongoose.model('PdfTemplate', PdfTemplateSchema);
+

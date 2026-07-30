@@ -1,7 +1,7 @@
 import PDFDocument from 'pdfkit';
 import path from 'path';
 import dbConnect from './db';
-import { ExamSession, ExamResult, SectionResult } from './models';
+import { ExamSession, ExamResult, SectionResult, PdfTemplate } from './models';
 
 // In-Memory cache for downloaded font buffers (avoids Vercel filesystem trace restrictions)
 let cachedFonts = null;
@@ -61,6 +61,43 @@ export async function generatePdfReport(sessionId) {
 
   const sectionResults = await SectionResult.find({ examResultId: result._id })
     .populate('sectionId');
+
+  // Load 4 template images from MongoDB (cover, key_benefits, career_model, back_cover)
+  const BASE_URL = 'https://ibssr.vercel.app';
+  const DEFAULT_URLS = {
+    cover:        `${BASE_URL}/uploads/template_cover.png`,
+    key_benefits: `${BASE_URL}/uploads/template_key_benefits.png`,
+    career_model: `${BASE_URL}/uploads/template_iceberg.png`,
+    back_cover:   `${BASE_URL}/uploads/template_back_cover.png`,
+  };
+
+  // Seed defaults if not yet in DB, then fetch all
+  const templateKeys = Object.keys(DEFAULT_URLS);
+  for (const key of templateKeys) {
+    await PdfTemplate.findOneAndUpdate(
+      { key },
+      { $setOnInsert: { label: key, imageUrl: DEFAULT_URLS[key], updatedAt: new Date() } },
+      { upsert: true }
+    );
+  }
+  const templateDocs = await PdfTemplate.find({ key: { $in: templateKeys } });
+  const tplMap = {};
+  templateDocs.forEach(t => { tplMap[t.key] = t.imageUrl; });
+
+  // Pre-fetch all 4 template image buffers in parallel
+  const fetchBuf = async (url) => {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return Buffer.from(await res.arrayBuffer());
+    } catch (_) {}
+    return null;
+  };
+  const [coverBuf, keyBenefitsBuf, careerModelBuf, backCoverBuf] = await Promise.all([
+    fetchBuf(tplMap.cover        || DEFAULT_URLS.cover),
+    fetchBuf(tplMap.key_benefits || DEFAULT_URLS.key_benefits),
+    fetchBuf(tplMap.career_model || DEFAULT_URLS.career_model),
+    fetchBuf(tplMap.back_cover   || DEFAULT_URLS.back_cover),
+  ]);
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 40, size: 'A4' });
@@ -161,67 +198,22 @@ export async function generatePdfReport(sessionId) {
     };
 
     // =========================================================================
-    // PAGE 1: COVER PAGE
+    // PAGE 1: COVER PAGE — full-page template image (no exam name)
     // =========================================================================
-    // Draw straight vertical stripes on the right
-    const stripesX = 420;
-    const stripeColors = ['#0071e3', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
-    
-    // Staggered horizontal gaps/dashes positions for each stripe
-    const gaps = [
-      { y1: 220, y2: 690 },
-      { y1: 110, y2: 740 },
-      { y1: 310, y2: 705 },
-      { y1: 170, y2: 765 },
-      { y1: 260, y2: 795 },
-      { y1: 190, y2: 650 },
-      { y1: 130, y2: 720 }
-    ];
-
-    stripeColors.forEach((col, idx) => {
-      const sx = stripesX + idx * 16;
-      doc.fillColor(col)
-         .rect(sx, 0, 12, 842)
-         .fill();
-
-      // Draw white gaps/dashes crossing this stripe
-      doc.lineWidth(5)
-         .strokeColor('#ffffff');
-      
-      const stripeGaps = gaps[idx] || { y1: 200, y2: 700 };
-      doc.moveTo(sx - 2, stripeGaps.y1)
-         .lineTo(sx + 14, stripeGaps.y1)
-         .stroke();
-         
-      doc.moveTo(sx - 2, stripeGaps.y2)
-         .lineTo(sx + 14, stripeGaps.y2)
-         .stroke();
-    });
-
-    // Clean logo placement (no trapezoidal banner)
-    drawLogo(160, 160, 100);
-
-    // Dynamic Exam Title
-    doc.fillColor('#0f172a')
-       .fontSize(36)
-       .font(fontBold)
-       .text(exam.title, 60, 280);
-
-    doc.fillColor('#334155')
-       .fontSize(18)
-       .font(fontBold)
-       .text('Assessment Report', 60, 325);
-
-    doc.fillColor('#64748b')
-       .fontSize(12)
-       .font(fontRegular)
-       .text('Institute of Behavioural\nSocial Sciences and\nResearch (IBSSR)', 60, 390, { lineGap: 4 });
-
-    // Page footer tagline
-    doc.fillColor('#94a3b8')
-       .fontSize(9)
-       .font(fontBold)
-       .text('NURTURE . EDUCATE . ACHIEVE', 60, 740);
+    if (coverBuf) {
+      doc.image(coverBuf, 0, 0, { width: 595, height: 842 });
+    } else {
+      // Fallback drawn cover
+      const stripeColors = ['#0071e3','#3b82f6','#06b6d4','#10b981','#f59e0b','#ec4899','#ef4444'];
+      stripeColors.forEach((col, idx) => {
+        const sx = 420 + idx * 16;
+        doc.fillColor(col).rect(sx, 0, 12, 842).fill();
+      });
+      drawLogo(160, 160, 80);
+      doc.fillColor('#0f172a').fontSize(36).font(fontBold).text('Career Saathi', 60, 300);
+      doc.fillColor('#334155').fontSize(14).font(fontRegular)
+         .text('Institute of Behavioural Social Sciences and Research (IBSSR)', 60, 400, { width: 350 });
+    }
 
     // =========================================================================
     // PAGE 2: TEST REPORT SUMMARY & CONGRATS
@@ -286,77 +278,54 @@ export async function generatePdfReport(sessionId) {
     drawFooterDecoration(2);
 
     // =========================================================================
-    // PAGE 3: KEY BENEFITS OF THE REPORT
+    // PAGE 3: KEY BENEFITS — full-page template image
     // =========================================================================
     doc.addPage();
-    drawHeaderDecoration(3);
+    if (keyBenefitsBuf) {
+      doc.image(keyBenefitsBuf, 0, 0, { width: 595, height: 842 });
+    } else {
+      // Fallback text layout
+      drawHeaderDecoration(3);
+      doc.fillColor('#0071e3').rect(40, 85, 4, 32).fill();
+      doc.fillColor('#0f172a').fontSize(22).font(fontBold).text('Key benefits of the report.', 52, 90);
+      const fallbackBenefits = [
+        'Helps to gain a better understanding of your interests, abilities, and adaptability levels.',
+        'Helps to identify your abilities and adaptability levels that require improvement.',
+        'Provides career clusters and job role recommendations based on your abilities.',
+        'Helps to attain long-term satisfaction with the right choice of career.'
+      ];
+      fallbackBenefits.forEach((b, i) => {
+        doc.fillColor('#0071e3').circle(55, 160 + i * 145 + 10, 10).fill();
+        doc.fillColor('#0f172a').fontSize(12).font(fontBold).text(b, 75, 160 + i * 145, { width: 470 });
+      });
+      drawLogo(297, 720, 28);
+      drawFooterDecoration(3);
+    }
 
-    // --- Page header accent bar ---
-    doc.fillColor('#0071e3').rect(40, 85, 4, 32).fill();
-    doc.fillColor('#0f172a').fontSize(22).font(fontBold).text('Key benefits of the report.', 52, 90);
-
-    // Subtitle
-    doc.fillColor('#64748b').fontSize(10).font(fontRegular)
-       .text('This report helps you understand yourself better and make informed career decisions.', 52, 117, { width: 490 });
-
-    // Thin full-width divider under header
-    doc.lineWidth(0.8).strokeColor('#cbd5e1').moveTo(40, 138).lineTo(555, 138).stroke();
-
-    const benefitColors = ['#0071e3', '#10b981', '#f59e0b', '#8b5cf6'];
-    const benefitNumbers = ['01', '02', '03', '04'];
-    const benefitTexts = [
-      'Helps to gain a better understanding of your interests, abilities, and adaptability levels align with your career.',
-      'Helps to identify your abilities and adaptability levels that require improvement.',
-      'Provides a variety of career clusters and job role recommendations that correspond with your abilities and interest areas.',
-      'Helps to attain long-term satisfaction with the right choice of career.'
-    ];
-
-    benefitTexts.forEach((b, i) => {
-      const cardX = 40;
-      const cardY = 155 + i * 135;
-      const cardW = 515;
-      const cardH = 115;
-      const accentColor = benefitColors[i];
-
-      // Card shadow (faint grey behind card)
-      doc.fillColor('#f1f5f9').roundedRect(cardX + 3, cardY + 3, cardW, cardH, 10).fill();
-
-      // Card background
-      doc.fillColor('#ffffff').roundedRect(cardX, cardY, cardW, cardH, 10).fill();
-
-      // Left accent border strip
-      doc.fillColor(accentColor).roundedRect(cardX, cardY, 5, cardH, 3).fill();
-
-      // Large faint number watermark background
-      doc.fillColor(accentColor).opacity(0.06)
-         .fontSize(72).font(fontBold)
-         .text(benefitNumbers[i], 430, cardY + 12, { width: 110, align: 'right' });
+    // =========================================================================
+    // PAGE 4: CAREER SAATHI MODEL — full-page template image
+    // =========================================================================
+    doc.addPage();
+    if (careerModelBuf) {
+      doc.image(careerModelBuf, 0, 0, { width: 595, height: 842 });
+    } else {
+      // Fallback vector iceberg
+      drawHeaderDecoration(4);
+      doc.fillColor('#1e1b4b').fontSize(28).font(fontBold).text('Career Saathi Model', 150, 90, { align: 'center', width: 300 });
+      doc.fillColor('#e0f2fe').rect(55, 200, 485, 220).fill();
+      doc.fillColor('#0369a1').rect(55, 420, 485, 250).fill();
+      doc.fillColor('#f0f9ff').opacity(0.9).polygon([297, 210], [160, 415], [434, 415]).fill();
       doc.opacity(1);
-
-      // Numbered badge
-      doc.fillColor(accentColor).circle(cardX + 35, cardY + 30, 16).fill();
-      doc.fillColor('#ffffff').fontSize(11).font(fontBold)
-         .text(benefitNumbers[i], cardX + 24, cardY + 23);
-
-      // Benefit heading label
-      const labels = ['Career Understanding', 'Ability Improvement', 'Career Recommendations', 'Long-term Satisfaction'];
-      doc.fillColor('#0f172a').fontSize(13).font(fontBold)
-         .text(labels[i], cardX + 60, cardY + 20);
-
-      // Benefit body text
-      doc.fillColor('#475569').fontSize(10).font(fontRegular)
-         .text(b, cardX + 20, cardY + 52, { width: cardW - 35, lineGap: 4 });
-    });
-
-    // IBSSR watermark in center bottom
-    drawLogo(297, 720, 28);
-    drawFooterDecoration(3);
+      doc.fillColor('#bae6fd').opacity(0.7).polygon([297, 420], [105, 660], [489, 660]).fill();
+      doc.opacity(1);
+      drawFooterDecoration(4);
+    }
 
     // =========================================================================
-    // PAGE 4: CAREER STREAM INDICATOR (BAR CHART)
+    // PAGE 5: CAREER STREAM INDICATOR (BAR CHART)
     // =========================================================================
     doc.addPage();
-    drawHeaderDecoration(4);
+    drawHeaderDecoration(5);
 
     doc.fillColor('#0f172a')
        .fontSize(18)
@@ -449,13 +418,13 @@ export async function generatePdfReport(sessionId) {
          { width: 515, lineGap: 4 }
        );
 
-    drawFooterDecoration(4);
+    drawFooterDecoration(5);
 
     // =========================================================================
-    // PAGE 5: COGNITIVE ABILITY ASSESSMENT (BAR CHART)
+    // PAGE 6: COGNITIVE ABILITY ASSESSMENT (BAR CHART)
     // =========================================================================
     doc.addPage();
-    drawHeaderDecoration(5);
+    drawHeaderDecoration(6);
 
     doc.fillColor('#0f172a')
        .fontSize(18)
@@ -540,13 +509,13 @@ export async function generatePdfReport(sessionId) {
          { width: 515, lineGap: 4 }
        );
 
-    drawFooterDecoration(5);
+    drawFooterDecoration(6);
 
     // =========================================================================
-    // PAGE 6: ADAPTABILITY INVENTORY
+    // PAGE 7: ADAPTABILITY INVENTORY
     // =========================================================================
     doc.addPage();
-    drawHeaderDecoration(6);
+    drawHeaderDecoration(7);
 
     doc.fillColor('#0f172a')
        .fontSize(18)
@@ -591,13 +560,13 @@ export async function generatePdfReport(sessionId) {
          .text(item.desc, 40, blockY + 40, { width: 515, lineGap: 4 });
     });
 
-    drawFooterDecoration(6);
+    drawFooterDecoration(7);
 
     // =========================================================================
-    // PAGE 7: COUNSELLOR NOTES, RECOMMENDS & DISCLAIMERS
+    // PAGE 8: COUNSELLOR NOTES, RECOMMENDS & DISCLAIMERS
     // =========================================================================
     doc.addPage();
-    drawHeaderDecoration(7);
+    drawHeaderDecoration(8);
 
     doc.fillColor('#0f172a')
        .fontSize(18)
@@ -653,42 +622,25 @@ export async function generatePdfReport(sessionId) {
          { width: 515, lineGap: 3 }
        );
 
-    drawFooterDecoration(7);
+    drawFooterDecoration(8);
 
     // =========================================================================
-    // LAST PAGE: IBSSR BACK COVER
+    // LAST PAGE: IBSSR BACK COVER — full-page template image
     // =========================================================================
     doc.addPage();
-
-    // Colored vertical stripes on the LEFT side (mirror of cover page)
-    const backStripeColors = ['#0071e3', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
-    const backGaps = [
-      { y1: 220, y2: 690 }, { y1: 110, y2: 740 }, { y1: 310, y2: 705 },
-      { y1: 170, y2: 765 }, { y1: 260, y2: 795 }, { y1: 190, y2: 650 }, { y1: 130, y2: 720 }
-    ];
-    backStripeColors.forEach((col, idx) => {
-      const sx = 20 + idx * 16;
-      doc.fillColor(col).rect(sx, 0, 12, 842).fill();
-      doc.lineWidth(5).strokeColor('#ffffff');
-      const g = backGaps[idx] || { y1: 200, y2: 700 };
-      doc.moveTo(sx - 2, g.y1).lineTo(sx + 14, g.y1).stroke();
-      doc.moveTo(sx - 2, g.y2).lineTo(sx + 14, g.y2).stroke();
-    });
-
-    // Faint vertical columns on right
-    const bcols = [300, 340, 380, 420, 460, 500];
-    bcols.forEach(cx => {
-      doc.fillColor('#f8fafc').rect(cx, 0, 22, 842).fill();
-    });
-
-    // Large centered IBSSR logo
-    drawLogo(297, 380, 90);
-
-    // Organization name below logo
-    doc.fillColor('#0f172a')
-       .fontSize(22)
-       .font(fontBold)
-       .text('Institute of Behavioural\nSocial Sciences and\nResearch (IBSSR)', 140, 490, { align: 'center', width: 315, lineGap: 6 });
+    if (backCoverBuf) {
+      doc.image(backCoverBuf, 0, 0, { width: 595, height: 842 });
+    } else {
+      // Fallback drawn back cover
+      const bcColors = ['#0071e3','#3b82f6','#06b6d4','#10b981','#f59e0b','#ec4899','#ef4444'];
+      bcColors.forEach((col, idx) => {
+        const sx = 20 + idx * 16;
+        doc.fillColor(col).rect(sx, 0, 12, 842).fill();
+      });
+      drawLogo(297, 380, 90);
+      doc.fillColor('#0f172a').fontSize(22).font(fontBold)
+         .text('Institute of Behavioural\nSocial Sciences and\nResearch (IBSSR)', 140, 490, { align: 'center', width: 315, lineGap: 6 });
+    }
 
     // Finish PDF document
     doc.end();
