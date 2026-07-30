@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import path from 'path';
+import fs from 'fs';
 import dbConnect from './db';
 import { ExamSession, ExamResult, SectionResult, PdfTemplate } from './models';
 
@@ -65,18 +66,18 @@ export async function generatePdfReport(sessionId) {
   // Load 4 template images from MongoDB (cover, key_benefits, career_model, back_cover)
   const BASE_URL = 'https://ibssr.vercel.app';
   const DEFAULT_URLS = {
-    cover:        `${BASE_URL}/uploads/template_cover.png`,
-    key_benefits: `${BASE_URL}/uploads/template_key_benefits.png`,
-    career_model: `${BASE_URL}/uploads/template_iceberg.png`,
-    back_cover:   `${BASE_URL}/uploads/template_back_cover.png`,
+    cover:        `${BASE_URL}/uploads/template_cover.jpg`,
+    key_benefits: `${BASE_URL}/uploads/template_key_benefits.jpg`,
+    career_model: `${BASE_URL}/uploads/template_iceberg.jpg`,
+    back_cover:   `${BASE_URL}/uploads/template_back_cover.jpg`,
   };
 
-  // Seed defaults if not yet in DB, then fetch all
+  // Seed or update defaults in DB
   const templateKeys = Object.keys(DEFAULT_URLS);
   for (const key of templateKeys) {
     await PdfTemplate.findOneAndUpdate(
       { key },
-      { $setOnInsert: { label: key, imageUrl: DEFAULT_URLS[key], updatedAt: new Date() } },
+      { $set: { label: key, imageUrl: DEFAULT_URLS[key], updatedAt: new Date() } },
       { upsert: true }
     );
   }
@@ -84,19 +85,39 @@ export async function generatePdfReport(sessionId) {
   const tplMap = {};
   templateDocs.forEach(t => { tplMap[t.key] = t.imageUrl; });
 
-  // Pre-fetch all 4 template image buffers in parallel
-  const fetchBuf = async (url) => {
+  // Pre-fetch all 4 template image buffers in parallel (tries local file first for max quality, then HTTP fetch)
+  const getTemplateBuffer = async (key, fallbackUrl) => {
+    // 1. Try local file path first for crisp uncompressed resolution
+    const localFileName = key === 'cover' ? 'template_cover.jpg'
+      : key === 'key_benefits' ? 'template_key_benefits.jpg'
+      : key === 'career_model' ? 'template_iceberg.jpg'
+      : 'template_back_cover.jpg';
+    
+    const localPath = path.join(process.cwd(), 'public', 'uploads', localFileName);
+    if (fs.existsSync(localPath)) {
+      try {
+        return await fs.promises.readFile(localPath);
+      } catch (err) {
+        console.warn(`Local file read failed for ${localFileName}, trying URL...`);
+      }
+    }
+
+    // 2. Fallback to URL fetch if local file isn't present
+    const targetUrl = tplMap[key] || fallbackUrl;
     try {
-      const res = await fetch(url);
+      const res = await fetch(targetUrl);
       if (res.ok) return Buffer.from(await res.arrayBuffer());
-    } catch (_) {}
+    } catch (e) {
+      console.error(`Fetch failed for template ${key}:`, e);
+    }
     return null;
   };
+
   const [coverBuf, keyBenefitsBuf, careerModelBuf, backCoverBuf] = await Promise.all([
-    fetchBuf(tplMap.cover        || DEFAULT_URLS.cover),
-    fetchBuf(tplMap.key_benefits || DEFAULT_URLS.key_benefits),
-    fetchBuf(tplMap.career_model || DEFAULT_URLS.career_model),
-    fetchBuf(tplMap.back_cover   || DEFAULT_URLS.back_cover),
+    getTemplateBuffer('cover', DEFAULT_URLS.cover),
+    getTemplateBuffer('key_benefits', DEFAULT_URLS.key_benefits),
+    getTemplateBuffer('career_model', DEFAULT_URLS.career_model),
+    getTemplateBuffer('back_cover', DEFAULT_URLS.back_cover),
   ]);
 
   return new Promise((resolve, reject) => {

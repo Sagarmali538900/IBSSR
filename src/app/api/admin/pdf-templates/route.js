@@ -6,10 +6,10 @@ const BASE_URL = 'https://ibssr.vercel.app';
 
 // Default templates — seeded from public/uploads if not yet in DB
 const DEFAULT_TEMPLATES = [
-  { key: 'cover',        label: 'Cover Page',             imageUrl: `${BASE_URL}/uploads/template_cover.png` },
-  { key: 'key_benefits', label: 'Key Benefits Page',      imageUrl: `${BASE_URL}/uploads/template_key_benefits.png` },
-  { key: 'career_model', label: 'Career Saathi Model',    imageUrl: `${BASE_URL}/uploads/template_iceberg.png` },
-  { key: 'back_cover',   label: 'Back Cover Page',        imageUrl: `${BASE_URL}/uploads/template_back_cover.png` },
+  { key: 'cover',        label: 'Cover Page',             imageUrl: `${BASE_URL}/uploads/template_cover.jpg` },
+  { key: 'key_benefits', label: 'Key Benefits Page',      imageUrl: `${BASE_URL}/uploads/template_key_benefits.jpg` },
+  { key: 'career_model', label: 'Career Saathi Model',    imageUrl: `${BASE_URL}/uploads/template_iceberg.jpg` },
+  { key: 'back_cover',   label: 'Back Cover Page',        imageUrl: `${BASE_URL}/uploads/template_back_cover.jpg` },
 ];
 
 // GET — returns all 4 templates, seeding defaults if missing
