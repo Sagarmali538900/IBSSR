@@ -135,6 +135,12 @@ export default function ExamRunClient({
     }
   };
 
+  // Real-time calculation of active section question counts
+  const activeAnsweredCount = questions.filter(
+    (q) => savedAnswers[q.id] && savedAnswers[q.id].length > 0
+  ).length;
+  const activeRemainingCount = questions.length - activeAnsweredCount;
+
   // Helper formatting for timer
   const formatTime = (secs) => {
     const mins = Math.floor(secs / 60);
@@ -146,6 +152,13 @@ export default function ExamRunClient({
   const progressPct = section.totalDurationSeconds > 0
     ? (timeLeft / section.totalDurationSeconds) * 100
     : 0;
+
+  const scrollToQuestion = (idx) => {
+    const el = document.getElementById(`question-card-${idx}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', flexDirection: 'column', background: 'radial-gradient(circle at 50% 0%, #1c1936 0%, #07070a 80%)', padding: '2rem' }}>
@@ -195,7 +208,7 @@ export default function ExamRunClient({
             const chosenOptionIds = savedAnswers[q.id] || [];
 
             return (
-              <div key={q.id} className="glass-card" style={{ padding: '2rem' }}>
+              <div key={q.id} id={`question-card-${qIndex}`} className="glass-card" style={{ padding: '2rem' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-cyan)', textTransform: 'uppercase' }}>
                   Question {qIndex + 1}
                 </span>
@@ -286,17 +299,75 @@ export default function ExamRunClient({
         </div>
 
         {/* Right Side: Sidebar Navigation progress */}
-        <div className="glass-card" style={{ padding: '1.5rem', position: 'sticky', top: '2rem' }}>
-          <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>
+        <div className="glass-card" style={{ padding: '1.5rem', position: 'sticky', top: '2rem', height: 'fit-content' }}>
+          <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>
             Exam Progress
           </h3>
+
+          {/* Current Active Section Attended vs Remaining Stats Box */}
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.85rem', marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-cyan)', marginBottom: '0.5rem' }}>
+              Active Section Status
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px', padding: '0.5rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#10b981' }}>{activeAnsweredCount}</div>
+                <div style={{ fontSize: '0.7rem', color: '#a7f3d0', fontWeight: '600' }}>✓ Attended</div>
+              </div>
+              
+              <div style={{ background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '0.5rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#f59e0b' }}>{activeRemainingCount}</div>
+                <div style={{ fontSize: '0.7rem', color: '#fde68a', fontWeight: '600' }}>⏳ Remaining</div>
+              </div>
+            </div>
+
+            {/* Question Palette Grid for Active Section */}
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem', fontWeight: 600 }}>
+              Question Palette (Click to jump):
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.4rem' }}>
+              {questions.map((q, idx) => {
+                const isAnswered = savedAnswers[q.id] && savedAnswers[q.id].length > 0;
+                return (
+                  <button
+                    key={q.id}
+                    onClick={() => scrollToQuestion(idx)}
+                    title={`Question ${idx + 1}: ${isAnswered ? 'Attended' : 'Remaining'}`}
+                    style={{
+                      padding: '0.35rem 0',
+                      fontSize: '0.75rem',
+                      fontWeight: 'bold',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      border: isAnswered ? '1px solid #10b981' : '1px solid var(--glass-border)',
+                      background: isAnswered ? '#10b981' : 'rgba(255,255,255,0.05)',
+                      color: isAnswered ? '#ffffff' : 'var(--text-muted)',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {idx + 1}{isAnswered ? ' ✓' : ''}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* All Sections Breakdown */}
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+            Sections Overview
+          </div>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {sectionsData.map((sec) => {
               let labelColor = 'var(--text-muted)';
               let borderCol = 'var(--glass-border)';
+              let isCurrentActive = sec.status === 'active';
               
-              if (sec.status === 'active') {
+              const answered = isCurrentActive ? activeAnsweredCount : sec.answeredQuestions;
+              const remaining = sec.totalQuestions - answered;
+
+              if (isCurrentActive) {
                 labelColor = '#fff';
                 borderCol = 'var(--primary)';
               } else if (sec.status === 'completed') {
@@ -307,33 +378,36 @@ export default function ExamRunClient({
                 <div
                   key={sec.id}
                   style={{
-                    padding: '0.75rem',
+                    padding: '0.65rem',
                     borderRadius: '8px',
                     border: '1px solid',
                     borderColor: borderCol,
-                    background: sec.status === 'active' ? 'var(--glass-bg)' : 'transparent'
+                    background: isCurrentActive ? 'var(--glass-bg)' : 'transparent'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: labelColor }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: labelColor }}>
                       {sec.name}
                     </span>
                     {sec.status === 'completed' && (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--accent-green)', fontWeight: 'bold' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--accent-green)', fontWeight: 'bold' }}>
                         ✓ Done
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Answered: <strong>{sec.answeredQuestions}</strong> / {sec.totalQuestions}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    <span>Attended: <strong style={{ color: '#10b981' }}>{answered}</strong></span>
+                    <span>Remaining: <strong style={{ color: '#f59e0b' }}>{remaining}</strong></span>
+                    <span>Total: {sec.totalQuestions}</span>
                   </div>
                 </div>
               );
             })}
           </div>
 
-          <div style={{ marginTop: '2rem', fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem', lineHeight: '1.5' }}>
-            Answers are auto-saved. The timer runs continuously until the section ends.
+          <div style={{ marginTop: '1.5rem', fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid var(--glass-border)', paddingTop: '0.75rem', lineHeight: '1.4' }}>
+            Answers are auto-saved in real-time. Click any question number above to jump directly to it.
           </div>
         </div>
 
