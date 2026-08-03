@@ -20,7 +20,14 @@ export default function ExamRunClient({
 
   const timerRef = useRef(null);
 
-  // 1. Countdown timer effect
+  // 1. Scroll to top of Question 1 whenever section opens/switches
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }
+  }, [section.id]);
+
+  // 2. Countdown timer effect
   useEffect(() => {
     setTimeLeft(initialTimeLeft);
 

@@ -21,25 +21,35 @@ export async function POST(request) {
       return NextResponse.json({ success: true, completed: true, nextUrl: `/candidate/completed/${sessionId}` });
     }
 
-    // Save final answers sent in payload
-    if (answers) {
-      for (const [qId, optionIds] of Object.entries(answers)) {
-        let candidateAnswer = await CandidateAnswer.findOne({ sessionId, questionId: qId });
-        if (!candidateAnswer) {
-          candidateAnswer = new CandidateAnswer({
-            sessionId,
-            questionId: qId,
-            selectedOptionIds: []
-          });
-        }
+    // Save final answers sent in payload (Optimized with batch bulkWrite)
+    if (answers && Object.keys(answers).length > 0) {
+      const allOptionIds = Object.values(answers).flat().filter(Boolean);
+      const validOptions = allOptionIds.length > 0
+        ? await Option.find({ _id: { $in: allOptionIds } }).lean()
+        : [];
 
-        if (optionIds && optionIds.length > 0) {
-          const validOptions = await Option.find({ _id: { $in: optionIds }, questionId: qId });
-          candidateAnswer.selectedOptionIds = validOptions.map(opt => opt._id);
-        } else {
-          candidateAnswer.selectedOptionIds = [];
-        }
-        await candidateAnswer.save();
+      const validOptionMap = new Map();
+      validOptions.forEach(opt => {
+        const qIdStr = opt.questionId.toString();
+        if (!validOptionMap.has(qIdStr)) validOptionMap.set(qIdStr, new Set());
+        validOptionMap.get(qIdStr).add(opt._id.toString());
+      });
+
+      const bulkOps = Object.entries(answers).map(([qId, optionIds]) => {
+        const validSet = validOptionMap.get(qId) || new Set();
+        const finalOptionIds = (optionIds || []).filter(id => validSet.has(id));
+
+        return {
+          updateOne: {
+            filter: { sessionId, questionId: qId },
+            update: { $set: { selectedOptionIds: finalOptionIds, answeredAt: new Date() } },
+            upsert: true
+          }
+        };
+      });
+
+      if (bulkOps.length > 0) {
+        await CandidateAnswer.bulkWrite(bulkOps);
       }
     }
 
@@ -68,9 +78,11 @@ export async function POST(request) {
 
       // Calculate score & save results
       const resultObj = await calculateAndFinalizeResults(sessionId);
-      
-      // Dispatch Mock Email report
-      await sendCandidateReportEmail(sessionId, resultObj);
+
+      // Dispatch Email report in background (Non-blocking response)
+      sendCandidateReportEmail(sessionId, resultObj).catch(err => {
+        console.error('Background report email dispatch error:', err);
+      });
 
       return NextResponse.json({
         success: true,

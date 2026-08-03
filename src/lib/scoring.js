@@ -20,35 +20,63 @@ export async function calculateAndFinalizeResults(sessionId) {
   }
 
   const session = await ExamSession.findById(sessionId).populate('examId');
-  const sections = await Section.find({ examId: session.examId._id }).sort({ order: 1 });
-  
+  if (!session || !session.examId) throw new Error('Exam session not found');
+
+  const sections = await Section.find({ examId: session.examId._id }).sort({ order: 1 }).lean();
+  const sectionIds = sections.map(s => s._id);
+
+  // Batch fetch all questions & candidate answers in parallel
+  const [questions, candidateAnswers] = await Promise.all([
+    Question.find({ sectionId: { $in: sectionIds } }).lean(),
+    CandidateAnswer.find({ sessionId }).populate('selectedOptionIds').lean()
+  ]);
+
+  const questionIds = questions.map(q => q._id);
+  const options = await Option.find({ questionId: { $in: questionIds } }).lean();
+
+  // Index questions by sectionId
+  const questionsBySection = new Map();
+  questions.forEach(q => {
+    const sId = q.sectionId.toString();
+    if (!questionsBySection.has(sId)) questionsBySection.set(sId, []);
+    questionsBySection.get(sId).push(q);
+  });
+
+  // Index options by questionId
+  const optionsByQuestion = new Map();
+  options.forEach(opt => {
+    const qId = opt.questionId.toString();
+    if (!optionsByQuestion.has(qId)) optionsByQuestion.set(qId, []);
+    optionsByQuestion.get(qId).push(opt);
+  });
+
+  // Index candidate answers by questionId
+  const answerByQuestion = new Map();
+  candidateAnswers.forEach(ans => {
+    answerByQuestion.set(ans.questionId.toString(), ans);
+  });
+
   let totalEarnedScore = 0.0;
   let totalMaxScore = 0.0;
-  
-  const sectionScores = []; // Array of { section, earned, max }
+  const sectionScores = [];
 
   for (const section of sections) {
-    const questions = await Question.find({ sectionId: section._id });
+    const secQuestions = questionsBySection.get(section._id.toString()) || [];
     let sectionEarned = 0.0;
     let sectionMax = 0.0;
 
-    for (const question of questions) {
-      // Find max possible score for this question (sum of option scores > 0)
-      const options = await Option.find({ questionId: question._id });
-      const qMax = options.reduce((sum, opt) => sum + (opt.score > 0 ? opt.score : 0), 0);
+    for (const question of secQuestions) {
+      const qOptions = optionsByQuestion.get(question._id.toString()) || [];
+      const qMax = qOptions.reduce((sum, opt) => sum + (opt.score > 0 ? opt.score : 0), 0);
       sectionMax += qMax;
 
-      // Get candidate answers
-      const ans = await CandidateAnswer.findOne({ sessionId, questionId: question._id })
-        .populate('selectedOptionIds');
-      
-      if (ans && ans.selectedOptionIds.length > 0) {
+      const ans = answerByQuestion.get(question._id.toString());
+      if (ans && ans.selectedOptionIds && ans.selectedOptionIds.length > 0) {
         if (question.questionType === 'single_select') {
-          // Single select choice
-          sectionEarned += ans.selectedOptionIds[0].score;
+          const firstOpt = ans.selectedOptionIds[0];
+          sectionEarned += (firstOpt && typeof firstOpt.score === 'number') ? firstOpt.score : 0;
         } else {
-          // Multi select: sum choice weights
-          const score = ans.selectedOptionIds.reduce((sum, opt) => sum + opt.score, 0);
+          const score = ans.selectedOptionIds.reduce((sum, opt) => sum + (opt && typeof opt.score === 'number' ? opt.score : 0), 0);
           sectionEarned += score;
         }
       }
@@ -72,17 +100,21 @@ export async function calculateAndFinalizeResults(sessionId) {
     completedAt: new Date()
   });
 
-  // Create section results
-  for (const item of sectionScores) {
+  // Create section results in 1 batch insertMany
+  const sectionResultDocs = sectionScores.map(item => {
     let secPercentage = 0.0;
     if (item.max > 0) {
       secPercentage = Math.round((item.earned / item.max) * 10000) / 100;
     }
-    await SectionResult.create({
+    return {
       examResultId: result._id,
       sectionId: item.section._id,
       scorePercentage: secPercentage
-    });
+    };
+  });
+
+  if (sectionResultDocs.length > 0) {
+    await SectionResult.insertMany(sectionResultDocs);
   }
 
   return result;

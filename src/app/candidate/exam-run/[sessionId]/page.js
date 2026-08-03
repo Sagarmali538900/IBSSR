@@ -64,7 +64,9 @@ export default async function ExamRunPage({ params }) {
       await session.save();
 
       const result = await calculateAndFinalizeResults(sessionId);
-      await sendCandidateReportEmail(sessionId, result);
+      sendCandidateReportEmail(sessionId, result).catch(err => {
+        console.error('Background report email error:', err);
+      });
       
       redirect(`/candidate/completed/${sessionId}`);
     }
