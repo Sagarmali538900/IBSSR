@@ -223,6 +223,14 @@ export async function generatePdfReport(sessionId) {
     // =========================================================================
     if (coverBuf) {
       doc.image(coverBuf, 0, 0, { width: 595, height: 842 });
+      // Cover up 'Career Satu' typo in the original image with clean white patch & correct 'Career Saathi' text
+      doc.fillColor('#ffffff')
+         .rect(55, 260, 360, 85)
+         .fill();
+      doc.fillColor('#0f172a')
+         .fontSize(38)
+         .font(fontBold)
+         .text('Career Saathi', 60, 275);
     } else {
       // Fallback drawn cover
       const stripeColors = ['#0071e3','#3b82f6','#06b6d4','#10b981','#f59e0b','#ec4899','#ef4444'];
@@ -324,29 +332,10 @@ export async function generatePdfReport(sessionId) {
     }
 
     // =========================================================================
-    // PAGE 4: CAREER SAATHI MODEL — full-page template image
+    // PAGE 4: CAREER STREAM INDICATOR (BAR CHART)
     // =========================================================================
     doc.addPage();
-    if (careerModelBuf) {
-      doc.image(careerModelBuf, 0, 0, { width: 595, height: 842 });
-    } else {
-      // Fallback vector iceberg
-      drawHeaderDecoration(4);
-      doc.fillColor('#1e1b4b').fontSize(28).font(fontBold).text('Career Saathi Model', 150, 90, { align: 'center', width: 300 });
-      doc.fillColor('#e0f2fe').rect(55, 200, 485, 220).fill();
-      doc.fillColor('#0369a1').rect(55, 420, 485, 250).fill();
-      doc.fillColor('#f0f9ff').opacity(0.9).polygon([297, 210], [160, 415], [434, 415]).fill();
-      doc.opacity(1);
-      doc.fillColor('#bae6fd').opacity(0.7).polygon([297, 420], [105, 660], [489, 660]).fill();
-      doc.opacity(1);
-      drawFooterDecoration(4);
-    }
-
-    // =========================================================================
-    // PAGE 5: CAREER STREAM INDICATOR (BAR CHART)
-    // =========================================================================
-    doc.addPage();
-    drawHeaderDecoration(5);
+    drawHeaderDecoration(4);
 
     doc.fillColor('#0f172a')
        .fontSize(18)
@@ -439,13 +428,13 @@ export async function generatePdfReport(sessionId) {
          { width: 515, lineGap: 4 }
        );
 
-    drawFooterDecoration(5);
+    drawFooterDecoration(4);
 
     // =========================================================================
-    // PAGE 6: COGNITIVE ABILITY ASSESSMENT (BAR CHART)
+    // PAGE 5: COGNITIVE ABILITY ASSESSMENT (BAR CHART)
     // =========================================================================
     doc.addPage();
-    drawHeaderDecoration(6);
+    drawHeaderDecoration(5);
 
     doc.fillColor('#0f172a')
        .fontSize(18)
@@ -530,13 +519,13 @@ export async function generatePdfReport(sessionId) {
          { width: 515, lineGap: 4 }
        );
 
-    drawFooterDecoration(6);
+    drawFooterDecoration(5);
 
     // =========================================================================
-    // PAGE 7: ADAPTABILITY INVENTORY
+    // PAGE 6: ADAPTABILITY INVENTORY
     // =========================================================================
     doc.addPage();
-    drawHeaderDecoration(7);
+    drawHeaderDecoration(6);
 
     doc.fillColor('#0f172a')
        .fontSize(18)
@@ -581,13 +570,13 @@ export async function generatePdfReport(sessionId) {
          .text(item.desc, 40, blockY + 40, { width: 515, lineGap: 4 });
     });
 
-    drawFooterDecoration(7);
+    drawFooterDecoration(6);
 
     // =========================================================================
-    // PAGE 8: COUNSELLOR NOTES, RECOMMENDS & DISCLAIMERS
+    // PAGE 7: COUNSELLOR NOTES, RECOMMENDS & DISCLAIMERS
     // =========================================================================
     doc.addPage();
-    drawHeaderDecoration(8);
+    drawHeaderDecoration(7);
 
     doc.fillColor('#0f172a')
        .fontSize(18)
@@ -643,7 +632,7 @@ export async function generatePdfReport(sessionId) {
          { width: 515, lineGap: 3 }
        );
 
-    drawFooterDecoration(8);
+    drawFooterDecoration(7);
 
     // =========================================================================
     // LAST PAGE: IBSSR BACK COVER — full-page template image
