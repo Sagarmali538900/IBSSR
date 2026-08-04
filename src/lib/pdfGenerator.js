@@ -223,14 +223,14 @@ export async function generatePdfReport(sessionId) {
     // =========================================================================
     if (coverBuf) {
       doc.image(coverBuf, 0, 0, { width: 595, height: 842 });
-      // Cover up 'Career Satu' typo in the original image with clean white patch & correct 'Career Saathi' text
+      // Cover up 'Career Satu' typo in the image with clean white patch & correct 'Career Setu' text
       doc.fillColor('#ffffff')
          .rect(55, 260, 360, 85)
          .fill();
       doc.fillColor('#0f172a')
          .fontSize(38)
          .font(fontBold)
-         .text('Career Saathi', 60, 275);
+         .text('Career Setu', 60, 275);
     } else {
       // Fallback drawn cover
       const stripeColors = ['#0071e3','#3b82f6','#06b6d4','#10b981','#f59e0b','#ec4899','#ef4444'];
@@ -239,7 +239,7 @@ export async function generatePdfReport(sessionId) {
         doc.fillColor(col).rect(sx, 0, 12, 842).fill();
       });
       drawLogo(160, 160, 80);
-      doc.fillColor('#0f172a').fontSize(36).font(fontBold).text('Career Saathi', 60, 300);
+      doc.fillColor('#0f172a').fontSize(36).font(fontBold).text('Career Setu', 60, 300);
       doc.fillColor('#334155').fontSize(14).font(fontRegular)
          .text('Institute of Behavioural Social Sciences and Research (IBSSR)', 60, 400, { width: 350 });
     }
