@@ -4,6 +4,7 @@ import dbConnect from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { Exam, Candidate, ExamSession, ExamResult, ExamAssignment } from '@/lib/models';
 import DashboardCharts from './DashboardCharts';
+import StorageWidget from '@/app/components/StorageWidget';
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
@@ -172,6 +173,8 @@ export default async function DashboardPage() {
           {isOwner ? 'Administrator View' : 'Franchise Partner View'}
         </span>
       </div>
+
+      {isOwner && <StorageWidget />}
 
       {/* Metrics Cards Grid */}
       <div className="dashboard-grid">

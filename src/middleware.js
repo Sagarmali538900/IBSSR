@@ -22,8 +22,8 @@ export async function middleware(request) {
       return response;
     }
 
-    // Role-based restrict: Only superusers can manage franchises
-    if (pathname.startsWith('/admin/franchises') && !session.isSuperuser) {
+    // Role-based restrict: Only superusers can manage franchises and storage
+    if ((pathname.startsWith('/admin/franchises') || pathname.startsWith('/admin/storage')) && !session.isSuperuser) {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url));
     }
   }

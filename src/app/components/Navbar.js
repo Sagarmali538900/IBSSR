@@ -86,11 +86,18 @@ export default function Navbar({ username, isSuperuser }) {
           </Link>
         </li>
         {isSuperuser && (
-          <li>
-            <Link href="/admin/franchises" className="nav-link" onClick={closeMenu}>
-              Franchises
-            </Link>
-          </li>
+          <>
+            <li>
+              <Link href="/admin/franchises" className="nav-link" onClick={closeMenu}>
+                Franchises
+              </Link>
+            </li>
+            <li>
+              <Link href="/admin/storage" className="nav-link" onClick={closeMenu}>
+                Storage
+              </Link>
+            </li>
+          </>
         )}
         <li>
           <Link href="/admin/email-logs" className="nav-link" onClick={closeMenu}>
