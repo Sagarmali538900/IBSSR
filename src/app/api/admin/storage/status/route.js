@@ -30,6 +30,79 @@ export async function GET() {
     const mongoTotalUsed = mongoStorageSize + mongoIndexSize;
     const mongoUsagePercent = Math.min(100, (mongoTotalUsed / MONGO_LIMIT_BYTES) * 100);
 
+    // Collection Protection Level Mapping
+    const getProtectionInfo = (modelName) => {
+      switch (modelName) {
+        case 'PdfTemplate':
+          return {
+            level: 'do_not_delete',
+            badge: '🛑 DO NOT DELETE',
+            note: 'CRITICAL FOR PDF GENERATION: Stores background image references for PDF scorecards (Cover, Benefits, Career Model, Back Cover).'
+          };
+        case 'User':
+          return {
+            level: 'do_not_delete',
+            badge: '🛑 DO NOT DELETE',
+            note: 'CRITICAL SYSTEM DATA: Stores Administrator & Franchise login accounts.'
+          };
+        case 'Exam':
+          return {
+            level: 'do_not_delete',
+            badge: '🛑 DO NOT DELETE',
+            note: 'CRITICAL EXAM DATA: Assessment structures and configuration settings.'
+          };
+        case 'Section':
+          return {
+            level: 'do_not_delete',
+            badge: '🛑 DO NOT DELETE',
+            note: 'CRITICAL EXAM DATA: Exam section timers and ordering rules.'
+          };
+        case 'Question':
+          return {
+            level: 'do_not_delete',
+            badge: '🛑 DO NOT DELETE',
+            note: 'CRITICAL EXAM DATA: Test questions and image references.'
+          };
+        case 'Option':
+          return {
+            level: 'do_not_delete',
+            badge: '🛑 DO NOT DELETE',
+            note: 'CRITICAL EXAM DATA: Question options and scoring weights.'
+          };
+        case 'SentEmailLog':
+          return {
+            level: 'safe_to_cleanup',
+            badge: '🟢 SAFE TO CLEANUP',
+            note: 'RECOMMENDED FOR SPACE RECLAMATION: Outgoing email notification logs. Safe to delete anytime to free up MongoDB storage.'
+          };
+        case 'CandidateAnswer':
+          return {
+            level: 'caution',
+            badge: '⚠️ CAUTION',
+            note: 'TEST DATA: Raw candidate responses. Safe to clean up older logs if tests are already scored and completed.'
+          };
+        case 'ExamSession':
+          return {
+            level: 'caution',
+            badge: '⚠️ CAUTION',
+            note: 'TEST DATA: Active & completed candidate test sessions.'
+          };
+        case 'ExamResult':
+        case 'SectionResult':
+          return {
+            level: 'caution',
+            badge: '⚠️ CAUTION',
+            note: 'RESULT DATA: Computed score outputs used for PDF scorecard generation.'
+          };
+        default:
+          return {
+            level: 'caution',
+            badge: '⚠️ CAUTION',
+            note: 'Standard application data collection.'
+          };
+      }
+    };
+
     // Detailed per-collection breakdown
     const modelKeys = Object.keys(models);
     const collections = [];
@@ -45,12 +118,18 @@ export async function GET() {
         } catch (e) {
           sizeBytes = count * 250; // Fallback estimate ~250 bytes per document if collStats fails
         }
+        
+        const protection = getProtectionInfo(key);
+
         collections.push({
           name: Model.collection.name,
           modelName: key,
           count,
           sizeBytes,
-          sizeMB: (sizeBytes / (1024 * 1024)).toFixed(3)
+          sizeMB: (sizeBytes / (1024 * 1024)).toFixed(3),
+          protectionLevel: protection.level,
+          protectionBadge: protection.badge,
+          protectionNote: protection.note
         });
       }
     }
@@ -58,7 +137,17 @@ export async function GET() {
     // Sort collections by size descending
     collections.sort((a, b) => b.sizeBytes - a.sizeBytes);
 
-    // 2. Vercel Blob Storage Stats
+    // 2. Fetch Protected Image URLs from DB for Vercel Blob inspection
+    const pdfTemplates = await models.PdfTemplate.find({}).lean();
+    const pdfTemplateUrls = new Set(pdfTemplates.map(t => t.imageUrl).filter(Boolean));
+
+    const questionsWithImages = await models.Question.find({ image: { $ne: null } }).lean();
+    const questionImageUrls = new Set(questionsWithImages.map(q => q.image).filter(Boolean));
+
+    const optionsWithImages = await models.Option.find({ image: { $ne: null } }).lean();
+    const optionImageUrls = new Set(optionsWithImages.map(o => o.image).filter(Boolean));
+
+    // 3. Vercel Blob Storage Stats
     let blobFiles = [];
     let blobTotalBytes = 0;
     let blobUsagePercent = 0;
@@ -67,13 +156,36 @@ export async function GET() {
     try {
       if (process.env.BLOB_READ_WRITE_TOKEN) {
         const { blobs } = await list({ token: process.env.BLOB_READ_WRITE_TOKEN });
-        blobFiles = blobs.map(b => ({
-          url: b.url,
-          pathname: b.pathname,
-          size: b.size,
-          sizeKB: (b.size / 1024).toFixed(2),
-          uploadedAt: b.uploadedAt
-        }));
+        blobFiles = blobs.map(b => {
+          let isProtected = false;
+          let protectedType = 'general';
+          let protectionBadge = '🟢 General Upload';
+          let protectionNote = 'Standard asset.';
+
+          if (pdfTemplateUrls.has(b.url)) {
+            isProtected = true;
+            protectedType = 'pdf_template';
+            protectionBadge = '🔒 PDF Template Image';
+            protectionNote = 'CRITICAL FOR PDF GENERATION: Active background template image for candidate report PDF. DO NOT DELETE!';
+          } else if (questionImageUrls.has(b.url) || optionImageUrls.has(b.url)) {
+            isProtected = true;
+            protectedType = 'exam_image';
+            protectionBadge = '⚠️ Exam Question Image';
+            protectionNote = 'CRITICAL FOR EXAMS: Image attached to active question or option choice. DO NOT DELETE!';
+          }
+
+          return {
+            url: b.url,
+            pathname: b.pathname,
+            size: b.size,
+            sizeKB: (b.size / 1024).toFixed(2),
+            uploadedAt: b.uploadedAt,
+            isProtected,
+            protectedType,
+            protectionBadge,
+            protectionNote
+          };
+        });
         blobTotalBytes = blobFiles.reduce((acc, file) => acc + (file.size || 0), 0);
         blobUsagePercent = Math.min(100, (blobTotalBytes / BLOB_LIMIT_BYTES) * 100);
       }
@@ -81,7 +193,7 @@ export async function GET() {
       console.error('Error fetching Vercel Blob stats:', err);
     }
 
-    // 3. Intimation Health Status calculation
+    // 4. Intimation Health Status calculation
     const getHealthStatus = (percent) => {
       if (percent >= 85) return 'critical';
       if (percent >= 70) return 'warning';
