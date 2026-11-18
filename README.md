@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# IBSSR Assessment Portal
 
-## Getting Started
+An assessment management portal for administrators and franchise partners, with a candidate access-code intake and examination flow.
 
-First, run the development server:
+## Run the frontend and backend independently
+
+Install and start the backend in one terminal:
 
 ```bash
+cd backend
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Install and start the frontend in another terminal:
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The frontend is available at `http://localhost:3000`; the backend API runs at `http://localhost:4001`. Copy each folder's `.env.example` to `.env.local` and configure it. Set the same `JWT_SECRET` in both folders. The backend `.env.local` holds `MONGODB_URI`, email, and blob credentials. Check MongoDB readiness at `http://127.0.0.1:4001/api/health/db`.
 
-## Learn More
+## Frontend and backend boundaries
 
-To learn more about Next.js, take a look at the following resources:
+- **Frontend:** the complete Next.js project, including route pages, layouts, UI components, and static assets, lives in `frontend/`.
+- **Backend:** the independent Next.js API project, server-only database, authentication, scoring, report, email, and storage services live in `backend/`.
+- **HTTP API:** endpoints live in `backend/app/api`; the frontend proxies its existing `/api/...` requests to the backend so browser URLs and request/response contracts remain the same.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The two apps have separate dependencies, configuration, and run commands. The frontend and backend need to be running at the same time for the portal's API-backed workflows.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Existing workflows
 
-## Deploy on Vercel
+- Candidates enter an assessment code, register, read the instructions, complete sections, and receive a result.
+- Administrators and partners manage assessments and assignments, review results, and use the available reporting tools.
+- Administrators can also manage partners and storage.
+- Admins can request a one-time password reset link from the login page. Configure SMTP in `backend/.env.local`; in development without SMTP, the reset URL is printed in the backend terminal.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The corresponding screens remain under `/candidate/...` and `/admin/...`; API endpoints remain under `/api/...`.

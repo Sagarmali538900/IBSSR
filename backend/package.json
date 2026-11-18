@@ -1,0 +1,26 @@
+{
+  "name": "ibssr-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 4001",
+    "build": "next build",
+    "start": "next start -p 4001",
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.6.1",
+    "bcryptjs": "^3.0.3",
+    "exceljs": "^4.4.0",
+    "jose": "^6.2.3",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.24.1",
+    "next": "16.2.10",
+    "nodemailer": "^9.0.3",
+    "pdfkit": "^0.19.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.6.7"
+  }
+}
