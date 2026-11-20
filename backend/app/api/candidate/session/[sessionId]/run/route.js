@@ -69,7 +69,7 @@ export async function GET(_request, { params }) {
   return NextResponse.json({
     sessionId,
     section: { id: section._id.toString(), name: section.name, description: section.description || '', totalDurationSeconds: duration },
-    questions: questions.map((item) => ({ id: item._id.toString(), text: item.text, image: item.image || null, questionType: item.questionType, order: item.order, options: optionsData.filter((option) => option.questionId === item._id.toString()) })),
+    questions: questions.map((item) => ({ id: item._id.toString(), text: item.text, image: item.image || null, questionType: item.questionType, estimatedTimeSeconds: item.estimatedTimeSeconds || 0, order: item.order, options: optionsData.filter((option) => option.questionId === item._id.toString()) })),
     initialTimeLeft: timeLeft,
     initialSavedAnswers: savedAnswers,
     sectionsData,

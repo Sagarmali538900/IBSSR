@@ -36,6 +36,7 @@ export async function POST(request, { params }) {
     catch { return NextResponse.json({ message: 'Submit the question as valid multipart form data.' }, { status: 400 }); }
     const text = formData.get('text');
     const questionType = formData.get('questionType') || 'single_select';
+    const estimatedTimeSeconds = formData.get('estimatedTimeSeconds') || 0;
     const order = formData.get('order') ? Number(formData.get('order')) : 0;
     const imageFile = formData.get('image');
     const rawOptions = [];
@@ -44,7 +45,7 @@ export async function POST(request, { params }) {
       const optionText = String(formData.get(`option_text_${i}`) || '').trim();
       if (optionText) rawOptions.push({ text: optionText, score: formData.get(`option_score_${i}`) || 0 });
     }
-    const validation = schemas.questionFields.safeParse({ text, questionType, order, options: rawOptions });
+    const validation = schemas.questionFields.safeParse({ text, questionType, estimatedTimeSeconds, order, options: rawOptions });
     if (!validation.success) return NextResponse.json({ message: validation.error.issues[0]?.message || 'Please check the question details.' }, { status: 400 });
     const imageValidation = validateImageUpload(imageFile);
     if (!imageValidation.success) return NextResponse.json({ message: imageValidation.message }, { status: 400 });
@@ -61,6 +62,7 @@ export async function POST(request, { params }) {
       sectionId: secId,
       text: validation.data.text,
       questionType: validation.data.questionType,
+      estimatedTimeSeconds: validation.data.estimatedTimeSeconds,
       order: validation.data.order,
       image: qImagePath
     });

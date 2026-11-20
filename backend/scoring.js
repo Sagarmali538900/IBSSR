@@ -67,7 +67,10 @@ export async function calculateAndFinalizeResults(sessionId) {
 
     for (const question of secQuestions) {
       const qOptions = optionsByQuestion.get(question._id.toString()) || [];
-      const qMax = qOptions.reduce((sum, opt) => sum + (opt.score > 0 ? opt.score : 0), 0);
+      const positiveScores = qOptions.map((option) => option.score > 0 ? option.score : 0);
+      const qMax = ['multi_select', 'multi_image_choice'].includes(question.questionType)
+        ? positiveScores.reduce((sum, score) => sum + score, 0)
+        : Math.max(0, ...positiveScores);
       sectionMax += qMax;
 
       const ans = answerByQuestion.get(question._id.toString());

@@ -111,13 +111,16 @@ export default async function ResultDetailPage({ params }) {
                   }
 
                   // Max possible score for this question (sum of option scores > 0)
-                  const maxPossibleScore = qOptions.reduce((sum, opt) => sum + (opt.score > 0 ? opt.score : 0), 0);
+                  const positiveScores = qOptions.map((option) => option.score > 0 ? option.score : 0);
+                  const maxPossibleScore = ['multi_select', 'multi_image_choice'].includes(q.questionType)
+                    ? positiveScores.reduce((sum, score) => sum + score, 0)
+                    : Math.max(0, ...positiveScores);
 
                   return (
                     <div key={q._id.toString()} className="admin-question-card">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '0.75rem' }}>
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                          Question {qIndex + 1} - {q.questionType === 'single_select' ? 'Single Choice' : 'Multi-Select'}
+                          Question {qIndex + 1} - {({ single_select: 'Single choice', multi_select: 'Multiple choice', rating_scale: 'Rating scale', image_choice: 'Image choice', multi_image_choice: 'Multiple image choice' })[q.questionType] || 'Single choice'}
                         </span>
                         <span style={{ background: earnedScore > 0 ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'color-mix(in srgb, var(--accent-rose) 12%, transparent)', border: `1px solid ${earnedScore > 0 ? 'var(--accent-green)' : 'var(--accent-rose)'}`, padding: '0.25rem 0.6rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: '600', color: earnedScore > 0 ? 'var(--accent-green)' : 'var(--accent-rose)' }}>
                           Score: {earnedScore} / {maxPossibleScore}

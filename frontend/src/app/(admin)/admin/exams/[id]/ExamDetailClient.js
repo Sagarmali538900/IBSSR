@@ -8,6 +8,21 @@ import { useRouter } from 'next/navigation';
 import { getBlobImageSrc } from '@frontend/lib/getBlobImageSrc';
 import Icon from '@/app/components/Icon';
 
+const QUESTION_TYPE_LABELS = {
+  single_select: 'Single choice',
+  multi_select: 'Multiple choice',
+  rating_scale: 'Rating scale',
+  image_choice: 'Image choice',
+  multi_image_choice: 'Multiple image choice',
+};
+
+const formatDuration = (seconds) => {
+  const totalMinutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return remainingSeconds ? `${totalMinutes}m ${remainingSeconds}s` : `${totalMinutes} min`;
+};
+const formatQuestionTime = (seconds) => seconds < 60 ? `${seconds}s suggested` : `${Math.round(seconds / 60)} min suggested`;
+
 export default function ExamDetailClient({ exam, sections, questions, options, canEdit }) {
   const { notify, confirmAction } = useAlerts();
   const router = useRouter();
@@ -27,6 +42,14 @@ export default function ExamDetailClient({ exam, sections, questions, options, c
     acc[opt.questionId].push(opt);
     return acc;
   }, {});
+
+  const totalDurationSeconds = sections.reduce((sum, section) => sum + section.durationMinutes * 60 + section.durationSeconds, 0);
+  const maximumAssessmentScore = questions.reduce((total, question) => {
+    const positiveScores = (optionsByQuestion[question.id] || []).map((option) => Math.max(0, option.score));
+    return total + (['multi_select', 'multi_image_choice'].includes(question.questionType)
+      ? positiveScores.reduce((sum, score) => sum + score, 0)
+      : Math.max(0, ...positiveScores));
+  }, 0);
 
   const handleDeleteSection = async (secId) => {
     if (!await confirmAction('This permanently deletes the section and all questions and answer choices within it.', { title: 'Delete this section?', confirmLabel: 'Delete section', tone: 'danger' })) {
@@ -78,14 +101,15 @@ export default function ExamDetailClient({ exam, sections, questions, options, c
 
   return (
     <div className="exam-builder-page">
-      <nav className="builder-breadcrumb" aria-label="Breadcrumb">
-        <Link href="/admin/exams"><Icon name="back" size={15} /> All assessments</Link>
-      </nav>
-
       <header className="builder-page-header">
         <div className="builder-title-group">
           <span className="page-kicker">ASSESSMENT BUILDER</span>
-          <h1>{exam.title}</h1>
+          <div className="builder-title-line">
+            <Link href="/admin/exams" className="builder-back-link" aria-label="Back to assessments" title="Back to assessments">
+              <Icon name="back" size={17} />
+            </Link>
+            <h1>{exam.title}</h1>
+          </div>
           {exam.description && <p>{exam.description}</p>}
         </div>
         <div className="builder-header-actions">
@@ -109,6 +133,15 @@ export default function ExamDetailClient({ exam, sections, questions, options, c
           </details>
         </div>
       </header>
+
+      {sections.length > 0 && (
+        <section className="builder-overview" aria-label="Assessment overview">
+          <article><span>Sections</span><strong>{sections.length}</strong></article>
+          <article><span>Questions</span><strong>{questions.length}</strong></article>
+          <article><span>Time allowed</span><strong>{formatDuration(totalDurationSeconds)}</strong></article>
+          <article><span>Maximum score</span><strong>{maximumAssessmentScore.toLocaleString(undefined, { maximumFractionDigits: 2 })} <small>pts</small></strong></article>
+        </section>
+      )}
 
       {/* Sections and items rendering */}
       {sections.length === 0 ? (
@@ -212,8 +245,9 @@ export default function ExamDetailClient({ exam, sections, questions, options, c
                         {/* Question Text */}
                         <div>
                           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-cyan)', textTransform: 'uppercase' }}>
-                            Question {qIndex + 1} - {q.questionType === 'single_select' ? 'Single Choice' : 'Multi-Select'} (Order: {q.order})
+                            Question {qIndex + 1} · {QUESTION_TYPE_LABELS[q.questionType] || 'Single choice'} · {q.order}
                           </span>
+                          {q.estimatedTimeSeconds > 0 && <span className="builder-question-time">{formatQuestionTime(q.estimatedTimeSeconds)}</span>}
                           <h4 style={{ marginTop: '0.25rem', marginBottom: '0.75rem', color: '#fff', fontWeight: 500, maxWidth: '80%', fontSize: '1.1rem' }}>
                             {q.text}
                           </h4>

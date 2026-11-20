@@ -80,7 +80,8 @@ export const schemas = {
   pdfTemplate: z.object({ key: z.enum(['cover', 'key_benefits', 'career_model', 'back_cover']), imageUrl: z.string().url().max(2048) }),
   questionFields: z.object({
     text: shortText('Question text', 5000),
-    questionType: z.enum(['single_select', 'multi_select']),
+    questionType: z.enum(['single_select', 'multi_select', 'rating_scale', 'image_choice', 'multi_image_choice']),
+    estimatedTimeSeconds: z.coerce.number().int().min(0).max(3600).optional().default(0),
     order: z.coerce.number().int().min(0).max(10000),
     options: z.array(z.object({ id: objectId.optional(), text: shortText('Option text', 1000), score: z.coerce.number().finite().min(-100000).max(100000) })).min(1).max(100),
   }),
@@ -95,7 +96,8 @@ export const schemas = {
       order: z.coerce.number().int().min(0).max(10000).optional(),
       questions: z.array(z.object({
         text: shortText('Question text', 5000),
-        question_type: z.enum(['single_select', 'multi_select']).optional(),
+        question_type: z.enum(['single_select', 'multi_select', 'rating_scale', 'image_choice', 'multi_image_choice']).optional(),
+        estimated_time_seconds: z.coerce.number().int().min(0).max(3600).optional(),
         order: z.coerce.number().int().min(0).max(10000).optional(),
         image: imageReference.optional(),
         options: z.array(z.object({ text: shortText('Option text', 1000), image: imageReference.optional(), score: z.coerce.number().finite().min(-100000).max(100000).optional() })).max(100).optional(),
@@ -109,7 +111,7 @@ export const schemas = {
       name: shortText('Section name', 120), description: optionalText(2000),
       durationMinutes: z.coerce.number().int().min(0).max(1440), durationSeconds: z.coerce.number().int().min(0).max(59), order: z.coerce.number().int().min(0).max(10000),
       questions: z.record(z.string(), z.object({
-        text: shortText('Question text', 5000), questionType: z.enum(['single_select', 'multi_select']), order: z.coerce.number().int().min(0).max(10000), image: imageReference,
+        text: shortText('Question text', 5000), questionType: z.enum(['single_select', 'multi_select', 'rating_scale', 'image_choice', 'multi_image_choice']), estimatedTimeSeconds: z.coerce.number().int().min(0).max(3600).optional().default(0), order: z.coerce.number().int().min(0).max(10000), image: imageReference,
         options: z.array(z.object({ text: shortText('Option text', 1000), image: imageReference, score: z.coerce.number().finite().min(-100000).max(100000) })).max(100),
       })).default({}),
     })).superRefine((sections, context) => {

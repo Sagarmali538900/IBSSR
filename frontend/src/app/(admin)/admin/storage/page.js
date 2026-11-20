@@ -1,10 +1,9 @@
-﻿'use client';
+'use client';
 
 import { useAlerts } from '@/app/components/AlertProvider';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Icon from '@/app/components/Icon';
 import { inputSchemas, validateInput } from '@/lib/validation';
 
 export default function StoragePage() {
@@ -50,7 +49,7 @@ export default function StoragePage() {
   // MongoDB Collection Selection Handlers
   const toggleSelectCollection = (name, protectionLevel) => {
     if (protectionLevel === 'do_not_delete') {
-      notify(`âš ï¸ PROTECTION WARNING: Collection '${name}' is critical for system operation and PDF generation. Deletion is restricted to prevent breaking website functionality.`);
+      notify(`“${name}” contains data required by the assessment system and cannot be selected for cleanup.`, 'warning');
       return;
     }
     setSelectedCollections(prev => 
@@ -151,7 +150,7 @@ export default function StoragePage() {
     let confirmMsg = `Are you sure you want to permanently delete ${selectedBlobUrls.length} file(s) from Vercel Blob storage?`;
     
     if (protectedCount > 0) {
-      confirmMsg = `ðŸš¨ CRITICAL WARNING: You have selected ${protectedCount} protected asset(s) required for PDF REPORT GENERATION or EXAM QUESTIONS!\n\nDeleting these will break Candidate PDF Scorecards or Exam Images.\n\nAre you ABSOLUTELY SURE you want to permanently delete these files?`;
+      confirmMsg = `You selected ${protectedCount} protected asset(s) used by reports or assessment questions. Deleting them may break generated scorecards or assessment content. Continue?`;
     }
 
     if (!await confirmAction(confirmMsg, { title: 'Delete selected files?', confirmLabel: 'Delete files', tone: 'danger' })) return;
@@ -184,429 +183,214 @@ export default function StoragePage() {
     return 'var(--color-success, var(--accent-green))';
   };
 
-  const getBadge = (status) => {
-    if (status === 'critical') return <span className="badge badge-danger" style={{ fontWeight: 'bold' }}>CRITICAL (&gt;85%)</span>;
-    if (status === 'warning') return <span className="badge badge-warning" style={{ fontWeight: 'bold' }}>WARNING (&gt;70%)</span>;
-    return <span className="badge badge-success" style={{ fontWeight: 'bold' }}>HEALTHY (&lt;70%)</span>;
-  };
+  const getStatusLabel = (status) => status === 'critical' ? 'High usage' : status === 'warning' ? 'Review usage' : 'Healthy';
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '4rem 0' }}>
-        <span className="spinner" style={{ width: '32px', height: '32px', display: 'inline-block' }}></span>
-        <p style={{ marginTop: '1rem', color: 'var(--text-muted)' }}>Calculating Free-Tier Storage Usage &amp; Asset Protection...</p>
+      <div className="storage-loading" role="status">
+        <span className="spinner" />
+        <p>Loading storage usage and data safety details…</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="card" style={{ padding: '2rem', textAlign: 'center', borderTop: '4px solid #ef4444' }}>
-        <h2 style={{ color: '#ef4444', marginBottom: '1rem' }}>Access Restricted</h2>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>{error}</p>
-        <Link href="/admin/dashboard" className="btn btn-primary">
-          Return to Dashboard
-        </Link>
+      <div className="storage-error" role="alert">
+        <div>
+          <span className="storage-eyebrow">STORAGE MANAGEMENT</span>
+          <h1>Storage details are unavailable</h1>
+          <p>{error}</p>
+        </div>
+        <Link href="/admin/dashboard" className="btn btn-primary">Return to overview</Link>
       </div>
     );
   }
 
   const { mongo, blob, overallStatus } = data;
+  const deletableCollections = mongo.collections.filter((collection) => collection.protectionLevel !== 'do_not_delete');
+  const allCollectionsSelected = deletableCollections.length > 0 && selectedCollections.length === deletableCollections.length;
 
   return (
-    <div style={{ paddingBottom: '3rem' }}>
-      {/* Top Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+    <main className="storage-page">
+      <header className="storage-page-header">
         <div>
-          <h1 style={{ fontSize: '2rem', margin: 0 }}>Storage &amp; Data Safety Hub</h1>
-          <p style={{ color: 'var(--text-muted)', margin: '0.25rem 0 0 0', fontSize: '0.95rem' }}>
-            Free-tier storage intimations, selective database exports, and asset protection rules for PDF generation &amp; website operation.
-          </p>
+          <span className="storage-eyebrow">SYSTEM MANAGEMENT</span>
+          <h1>Storage &amp; data</h1>
+          <p>Monitor capacity, export records, and manage uploaded assets.</p>
         </div>
-        <div>
-          {getBadge(overallStatus)}
-        </div>
-      </div>
+        <span className={`storage-status is-${overallStatus || 'normal'}`}>
+          <span className="storage-status-dot" />{getStatusLabel(overallStatus)}
+        </span>
+      </header>
 
-      {/* PROMINENT SAFETY GUIDANCE BOX */}
-      <div className="card" style={{ 
-        padding: '1.25rem', 
-        borderRadius: '10px', 
-        marginBottom: '1.5rem', 
-        background: 'rgba(59, 130, 246, 0.05)', 
-        border: '1px solid rgba(59, 130, 246, 0.2)' 
-      }}>
-        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.05rem', color: 'var(--accent-color, #2563eb)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          ðŸ›¡ï¸ Data &amp; Asset Preservation Rules (Important for PDF &amp; Site Operation)
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', fontSize: '0.875rem' }}>
-          <div style={{ background: '#fff', padding: '0.85rem', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-            <span className="badge badge-danger" style={{ marginBottom: '0.4rem', display: 'inline-block', fontWeight: 'bold' }}>ðŸ›‘ DO NOT DELETE</span>
-            <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.85rem', lineHeight: '1.4' }}>
-              <strong>PdfTemplate</strong>, <strong>User</strong>, <strong>Exam</strong>, <strong>Section</strong>, <strong>Question</strong>, and <strong>Option</strong> collections.
-              These contain critical background images for Candidate PDF Report generation and active test content.
-            </p>
-          </div>
-
-          <div style={{ background: '#fff', padding: '0.85rem', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-            <span className="badge badge-warning" style={{ marginBottom: '0.4rem', display: 'inline-block', fontWeight: 'bold' }}>ðŸ”’ PROTECTED ASSETS</span>
-            <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.85rem', lineHeight: '1.4' }}>
-              Vercel Blob files tagged with <strong>ðŸ”’ PDF Template Image</strong> or <strong>âš ï¸ Exam Question Image</strong> are active image assets used in PDF scorecards and test items.
-            </p>
-          </div>
-
-          <div style={{ background: '#fff', padding: '0.85rem', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-            <span className="badge badge-success" style={{ marginBottom: '0.4rem', display: 'inline-block', fontWeight: 'bold' }}>ðŸŸ¢ SAFE TO CLEANUP</span>
-            <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.85rem', lineHeight: '1.4' }}>
-              <strong>SentEmailLog</strong> (email logs) and completed candidate answers older than 30-90 days can be safely exported and pruned to free up MongoDB space.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Intimation Alert Banner */}
       {overallStatus !== 'normal' && (
-        <div style={{
-          background: overallStatus === 'critical' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-          borderLeft: `5px solid ${overallStatus === 'critical' ? '#ef4444' : '#f59e0b'}`,
-          padding: '1rem 1.25rem',
-          borderRadius: '8px',
-          marginBottom: '1.5rem'
-        }}>
-          <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.05rem', color: overallStatus === 'critical' ? '#ef4444' : '#d97706' }}>
-            âš ï¸ Storage Capacity Warning
-          </h3>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-            Your application free-tier storage is approaching capacity. You can select non-critical data (like email logs) to export backups and free up space.
-          </p>
+        <div className={`storage-capacity-alert is-${overallStatus}`} role="status">
+          <strong>{overallStatus === 'critical' ? 'Storage is nearing its limit' : 'Storage usage needs attention'}</strong>
+          <span>Review capacity below and remove only data that is no longer needed.</span>
         </div>
       )}
 
-      {/* Action Notification Alert */}
       {actionMessage && (
-        <div className={`alert-${actionMessage.type}`} style={{ padding: '0.85rem 1.2rem', borderRadius: '8px', marginBottom: '1.5rem' }}>
+        <div className={`storage-feedback is-${actionMessage.type}`} role={actionMessage.type === 'danger' ? 'alert' : 'status'}>
           {actionMessage.text}
         </div>
       )}
 
-      {/* Top Overview Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
-        {/* MongoDB Card */}
-        <div className="card" style={{ padding: '1.25rem', borderRadius: '12px', borderTop: `4px solid ${getBarColor(mongo.usagePercent)}` }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>ðŸƒ MongoDB Database</h3>
-            {getBadge(mongo.status)}
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
-            {mongo.totalUsedMB} MB <span style={{ fontSize: '0.85rem', fontWeight: 'normal', color: 'var(--text-muted)' }}>/ {mongo.limitMB} MB Cap</span>
-          </div>
-          <div style={{ height: '8px', width: '100%', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden', marginBottom: '0.75rem' }}>
-            <div style={{ height: '100%', width: `${mongo.usagePercent}%`, background: getBarColor(mongo.usagePercent), transition: 'width 0.3s' }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            <span>Data: {mongo.dataSizeMB} MB | Index: {mongo.indexSizeMB} MB</span>
-            <span>{mongo.usagePercent}% Used</span>
-          </div>
-        </div>
-
-        {/* Vercel Blob Card */}
-        <div className="card" style={{ padding: '1.25rem', borderRadius: '12px', borderTop: `4px solid ${getBarColor(blob.usagePercent)}` }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>â˜ï¸ Vercel Blob Storage</h3>
-            {getBadge(blob.status)}
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
-            {blob.totalUsedMB} MB <span style={{ fontSize: '0.85rem', fontWeight: 'normal', color: 'var(--text-muted)' }}>/ {blob.limitMB} MB Cap</span>
-          </div>
-          <div style={{ height: '8px', width: '100%', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden', marginBottom: '0.75rem' }}>
-            <div style={{ height: '100%', width: `${blob.usagePercent}%`, background: getBarColor(blob.usagePercent), transition: 'width 0.3s' }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            <span>Files Stored: {blob.fileCount}</span>
-            <span>{blob.usagePercent}% Used</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Storage Tab Switcher */}
-      <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color, #e5e7eb)', marginBottom: '1.5rem', gap: '1rem' }}>
-        <button
-          onClick={() => setActiveTab('mongo')}
-          style={{
-            padding: '0.75rem 1.25rem',
-            border: 'none',
-            background: 'none',
-            fontSize: '1rem',
-            fontWeight: '600',
-            cursor: 'pointer',
-            borderBottom: activeTab === 'mongo' ? '3px solid var(--primary)' : '3px solid transparent',
-            color: activeTab === 'mongo' ? 'var(--primary)' : 'var(--text-muted)'
-          }}
-        >
-          <Icon name="storage" size={17} /> MongoDB collections ({mongo.collections.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('blob')}
-          style={{
-            padding: '0.75rem 1.25rem',
-            border: 'none',
-            background: 'none',
-            fontSize: '1rem',
-            fontWeight: '600',
-            cursor: 'pointer',
-            borderBottom: activeTab === 'blob' ? '3px solid var(--primary)' : '3px solid transparent',
-            color: activeTab === 'blob' ? 'var(--primary)' : 'var(--text-muted)'
-          }}
-        >
-          <Icon name="cloud" size={17} /> Vercel Blob assets ({blob.fileCount})
-        </button>
-      </div>
-
-      {/* TAB 1: MongoDB Selective Export & Safety Breakdown */}
-      {activeTab === 'mongo' && (
-        <div className="card" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+      <section className="storage-capacity-grid" aria-label="Storage capacity">
+        <article className="storage-capacity-card">
+          <div className="storage-capacity-topline">
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Database Collections &amp; Safety Breakdown</h3>
-              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                View document size, PDF generation dependency notes, and export/cleanup controls.
-              </p>
+              <span className="storage-eyebrow">DATABASE</span>
+              <h2>MongoDB</h2>
             </div>
+            <span className={`storage-status is-${mongo.status || 'normal'}`}>{getStatusLabel(mongo.status)}</span>
+          </div>
+          <div className="storage-capacity-number">
+            <strong>{mongo.totalUsedMB}</strong><span>MB used</span>
+            <span className="storage-capacity-limit">of {mongo.limitMB} MB</span>
+          </div>
+          <div className="storage-progress" role="progressbar" aria-label="MongoDB storage used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(mongo.usagePercent)}>
+            <span style={{ width: `${Math.min(Number(mongo.usagePercent) || 0, 100)}%`, background: getBarColor(mongo.usagePercent) }} />
+          </div>
+          <div className="storage-capacity-foot"><span>Data {mongo.dataSizeMB} MB · Index {mongo.indexSizeMB} MB</span><strong>{mongo.usagePercent}% used</strong></div>
+        </article>
 
-            {/* Quick Action Toolbar */}
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button 
-                className="btn btn-secondary"
-                onClick={() => handleExportDatabase('full')}
-                title="Export complete database backup as JSON"
-              >
-                ðŸ“¥ Export Full Database (All)
-              </button>
-              
-              <button 
-                className="btn btn-primary"
-                onClick={() => handleExportDatabase('collections')}
-                disabled={selectedCollections.length === 0}
-                title="Export selected collections as JSON"
-              >
-                ðŸ“¥ Export Selected ({selectedCollections.length})
+        <article className="storage-capacity-card">
+          <div className="storage-capacity-topline">
+            <div>
+              <span className="storage-eyebrow">UPLOADED FILES</span>
+              <h2>Vercel Blob</h2>
+            </div>
+            <span className={`storage-status is-${blob.status || 'normal'}`}>{getStatusLabel(blob.status)}</span>
+          </div>
+          <div className="storage-capacity-number">
+            <strong>{blob.totalUsedMB}</strong><span>MB used</span>
+            <span className="storage-capacity-limit">of {blob.limitMB} MB</span>
+          </div>
+          <div className="storage-progress" role="progressbar" aria-label="Uploaded file storage used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(blob.usagePercent)}>
+            <span style={{ width: `${Math.min(Number(blob.usagePercent) || 0, 100)}%`, background: getBarColor(blob.usagePercent) }} />
+          </div>
+          <div className="storage-capacity-foot"><span>{blob.fileCount} {blob.fileCount === 1 ? 'file' : 'files'} stored</span><strong>{blob.usagePercent}% used</strong></div>
+        </article>
+      </section>
+
+      <section className="storage-guidance" aria-labelledby="storage-guidance-title">
+        <div className="storage-guidance-heading">
+          <div>
+            <span className="storage-eyebrow">DATA SAFETY</span>
+            <h2 id="storage-guidance-title">Before you clean up</h2>
+          </div>
+          <p>Protected collections and assets cannot be selected for deletion.</p>
+        </div>
+        <div className="storage-guidance-grid">
+          <article><span className="storage-guidance-label is-protected">Protected collections</span><p>Users, exams, sections, questions, options, and PDF templates are required for portal operations.</p></article>
+          <article><span className="storage-guidance-label is-protected">Referenced files</span><p>Images used by scorecards or assessment questions should remain in storage.</p></article>
+          <article><span className="storage-guidance-label is-safe">Potential cleanup</span><p>Export first. Review older email logs and completed assessment data before removal.</p></article>
+        </div>
+      </section>
+
+      <nav className="storage-tabs" role="tablist" aria-label="Storage type">
+        <button type="button" role="tab" aria-selected={activeTab === 'mongo'} className={activeTab === 'mongo' ? 'is-active' : ''} onClick={() => setActiveTab('mongo')}>
+          Database collections <span>{mongo.collections.length}</span>
+        </button>
+        <button type="button" role="tab" aria-selected={activeTab === 'blob'} className={activeTab === 'blob' ? 'is-active' : ''} onClick={() => setActiveTab('blob')}>
+          Uploaded files <span>{blob.fileCount}</span>
+        </button>
+      </nav>
+
+      {activeTab === 'mongo' ? (
+        <section className="storage-panel" aria-labelledby="storage-collections-title">
+          <div className="storage-panel-heading">
+            <div>
+              <span className="storage-eyebrow">DATABASE</span>
+              <h2 id="storage-collections-title">Collections</h2>
+              <p>Review record counts, storage size, and cleanup eligibility.</p>
+            </div>
+            <div className="storage-toolbar">
+              <button type="button" className="storage-button is-secondary" onClick={() => handleExportDatabase('full')}>Export full backup</button>
+              <button type="button" className="storage-button is-primary" onClick={() => handleExportDatabase('collections')} disabled={selectedCollections.length === 0}>
+                Export selected <span>{selectedCollections.length}</span>
               </button>
             </div>
           </div>
 
-          {/* Cleanup Control Panel */}
-          <div style={{ 
-            background: 'rgba(239, 68, 68, 0.05)', 
-            border: '1px dashed rgba(239, 68, 68, 0.3)', 
-            padding: '1rem', 
-            borderRadius: '8px', 
-            marginBottom: '1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '1rem'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: '600', fontSize: '0.9rem', color: '#dc2626' }}>ðŸ§¹ Selective Cleanup:</span>
-              <label style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                Filter age cutoff:
-                <select 
-                  value={cleanupDays} 
-                  onChange={(e) => setCleanupDays(e.target.value)}
-                  style={{ padding: '0.3rem 0.6rem', borderRadius: '4px', border: '1px solid #ccc' }}
-                >
-                  <option value="7">Older than 7 days</option>
-                  <option value="15">Older than 15 days</option>
-                  <option value="30">Older than 30 days</option>
-                  <option value="90">Older than 90 days</option>
-                  <option value="0">All Documents (Full Purge)</option>
-                </select>
-              </label>
+          <div className="storage-cleanup-bar">
+            <div className="storage-cleanup-copy">
+              <strong>Clean up selected records</strong>
+              <span>Only records older than the selected period will be removed.</span>
             </div>
-
-            <button 
-              className="btn btn-danger"
-              onClick={handleCleanupCollections}
-              disabled={selectedCollections.length === 0 || isDeletingMongo}
-              style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '0.45rem 1rem', borderRadius: '6px' }}
-            >
-              {isDeletingMongo ? 'Cleaning Up...' : `Delete Selected Docs (${selectedCollections.length})`}
+            <label className="storage-age-select">Age
+              <select value={cleanupDays} onChange={(event) => setCleanupDays(event.target.value)}>
+                <option value="7">7+ days</option><option value="15">15+ days</option><option value="30">30+ days</option><option value="90">90+ days</option><option value="0">All records</option>
+              </select>
+            </label>
+            <button type="button" className="storage-button is-danger" onClick={handleCleanupCollections} disabled={selectedCollections.length === 0 || isDeletingMongo}>
+              {isDeletingMongo ? 'Cleaning up…' : `Delete ${selectedCollections.length} selected`}
             </button>
           </div>
 
-          {/* Collections Table */}
-          <div className="table-container">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '40px' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={
-                        mongo.collections.filter(c => c.protectionLevel !== 'do_not_delete').length > 0 &&
-                        selectedCollections.length === mongo.collections.filter(c => c.protectionLevel !== 'do_not_delete').length
-                      }
-                      onChange={toggleSelectAllCollections}
-                    />
-                  </th>
-                  <th>Model / Collection</th>
-                  <th>Docs / Size</th>
-                  <th>Safety Level</th>
-                  <th>PDF &amp; System Dependency Notes</th>
-                </tr>
-              </thead>
+          <div className="storage-table-wrap">
+            <table className="storage-table">
+              <thead><tr>
+                <th className="storage-checkbox-column"><input type="checkbox" aria-label="Select all removable collections" checked={allCollectionsSelected} onChange={toggleSelectAllCollections} /></th>
+                <th>Collection</th><th>Documents</th><th>Storage</th><th>Access</th><th>Notes</th>
+              </tr></thead>
               <tbody>
-                {mongo.collections.map((coll) => {
-                  const isSelected = selectedCollections.includes(coll.name);
-                  const isDoNotDelete = coll.protectionLevel === 'do_not_delete';
-
+                {mongo.collections.map((collection) => {
+                  const isSelected = selectedCollections.includes(collection.name);
+                  const isProtected = collection.protectionLevel === 'do_not_delete';
+                  const isSafe = collection.protectionLevel === 'safe_to_cleanup';
                   return (
-                    <tr 
-                      key={coll.name} 
-                      style={{ 
-                        background: isDoNotDelete ? 'rgba(239, 68, 68, 0.03)' : isSelected ? 'rgba(59, 130, 246, 0.05)' : 'transparent' 
-                      }}
-                    >
-                      <td>
-                        <input 
-                          type="checkbox" 
-                          disabled={isDoNotDelete}
-                          checked={isSelected}
-                          onChange={() => toggleSelectCollection(coll.name, coll.protectionLevel)}
-                        />
-                      </td>
-                      <td>
-                        <strong>{coll.modelName}</strong>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Collection: <code>{coll.name}</code></div>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: '600' }}>{coll.count.toLocaleString()} docs</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{coll.sizeMB} MB</div>
-                      </td>
-                      <td>
-                        {isDoNotDelete ? (
-                          <span className="badge badge-danger" style={{ fontWeight: 'bold', fontSize: '0.75rem' }}>ðŸ›‘ DO NOT DELETE</span>
-                        ) : coll.protectionLevel === 'safe_to_cleanup' ? (
-                          <span className="badge badge-success" style={{ fontWeight: 'bold', fontSize: '0.75rem' }}>ðŸŸ¢ SAFE TO CLEANUP</span>
-                        ) : (
-                          <span className="badge badge-warning" style={{ fontWeight: 'bold', fontSize: '0.75rem' }}>âš ï¸ CAUTION</span>
-                        )}
-                      </td>
-                      <td style={{ fontSize: '0.85rem', color: isDoNotDelete ? '#dc2626' : 'var(--text-primary)' }}>
-                        {coll.protectionNote}
-                      </td>
+                    <tr key={collection.name} className={`${isProtected ? 'is-protected' : ''}${isSelected ? ' is-selected' : ''}`}>
+                      <td className="storage-checkbox-column"><input type="checkbox" aria-label={`Select ${collection.modelName}`} disabled={isProtected} checked={isSelected} onChange={() => toggleSelectCollection(collection.name, collection.protectionLevel)} /></td>
+                      <td><strong className="storage-model-name">{collection.modelName}</strong><code className="storage-collection-name">{collection.name}</code></td>
+                      <td className="storage-doc-count">{collection.count.toLocaleString()}</td>
+                      <td className="storage-size">{collection.sizeMB} MB</td>
+                      <td><span className={`storage-access-label ${isProtected ? 'is-protected' : isSafe ? 'is-safe' : 'is-caution'}`}>{isProtected ? 'Protected' : isSafe ? 'Cleanup eligible' : 'Review first'}</span></td>
+                      <td className="storage-note">{collection.protectionNote}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
-
-      {/* TAB 2: Vercel Blob Asset Inspection & Protected Status */}
-      {activeTab === 'blob' && (
-        <div className="card" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+        </section>
+      ) : (
+        <section className="storage-panel" aria-labelledby="storage-assets-title">
+          <div className="storage-panel-heading">
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Vercel Blob Storage Assets &amp; PDF Protection</h3>
-              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                View uploaded images/PDF template assets, export URL manifest, or delete unused files.
-              </p>
+              <span className="storage-eyebrow">UPLOADED FILES</span>
+              <h2 id="storage-assets-title">Blob assets</h2>
+              <p>Referenced images are marked as protected. Verify each file before deleting it.</p>
             </div>
-
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button 
-                className="btn btn-secondary"
-                onClick={() => handleExportDatabase('blob_manifest')}
-                title="Export complete list of blob files as JSON"
-              >
-                ðŸ“¥ Export Manifest ({selectedBlobUrls.length > 0 ? `${selectedBlobUrls.length} Selected` : 'All'})
-              </button>
-
-              <button 
-                className="btn btn-danger"
-                onClick={handleDeleteBlobFiles}
-                disabled={selectedBlobUrls.length === 0 || isDeletingBlob}
-                style={{ background: '#dc2626', color: '#fff', border: 'none' }}
-              >
-                {isDeletingBlob ? 'Deleting...' : `ðŸ—‘ï¸ Delete Selected (${selectedBlobUrls.length})`}
+            <div className="storage-toolbar">
+              <button type="button" className="storage-button is-secondary" onClick={() => handleExportDatabase('blob_manifest')}>Export manifest</button>
+              <button type="button" className="storage-button is-danger" onClick={handleDeleteBlobFiles} disabled={selectedBlobUrls.length === 0 || isDeletingBlob}>
+                {isDeletingBlob ? 'Deleting…' : `Delete ${selectedBlobUrls.length} selected`}
               </button>
             </div>
           </div>
-
           {blob.files.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--text-muted)' }}>
-              ðŸ“· No files currently uploaded in Vercel Blob storage.
-            </div>
+            <div className="storage-empty"><strong>No uploaded files</strong><span>Files added to assessments or report templates will appear here.</span></div>
           ) : (
-            <div className="table-container">
-              <table className="custom-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '40px' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={blob.files.length > 0 && selectedBlobUrls.length === blob.files.length}
-                        onChange={toggleSelectAllBlobs}
-                      />
-                    </th>
-                    <th>File Asset Path</th>
-                    <th>Size &amp; Date</th>
-                    <th>PDF &amp; Exam Protection Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
+            <div className="storage-table-wrap">
+              <table className="storage-table">
+                <thead><tr>
+                  <th className="storage-checkbox-column"><input type="checkbox" aria-label="Select all files" checked={blob.files.length > 0 && selectedBlobUrls.length === blob.files.length} onChange={toggleSelectAllBlobs} /></th>
+                  <th>File</th><th>Size</th><th>Uploaded</th><th>Reference</th><th>Action</th>
+                </tr></thead>
                 <tbody>
                   {blob.files.map((file) => {
                     const isSelected = selectedBlobUrls.includes(file.url);
                     return (
-                      <tr key={file.url} style={{ background: file.isProtected ? 'rgba(239, 68, 68, 0.04)' : isSelected ? 'rgba(59, 130, 246, 0.05)' : 'transparent' }}>
-                        <td>
-                          <input 
-                            type="checkbox" 
-                            checked={isSelected}
-                            onChange={() => toggleSelectBlob(file.url, file.isProtected, file.protectionNote)}
-                          />
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: '600', wordBreak: 'break-all' }}>{file.pathname}</div>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: '600' }}>{file.sizeKB} KB</div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{new Date(file.uploadedAt).toLocaleDateString()}</div>
-                        </td>
-                        <td>
-                          {file.isProtected ? (
-                            <div>
-                              <span className="badge badge-danger" style={{ fontWeight: 'bold', fontSize: '0.75rem', marginBottom: '0.2rem', display: 'inline-block' }}>
-                                {file.protectionBadge}
-                              </span>
-                              <div style={{ fontSize: '0.8rem', color: '#dc2626', fontWeight: '500' }}>
-                                {file.protectionNote}
-                              </div>
-                            </div>
-                          ) : (
-                            <div>
-                              <span className="badge badge-success" style={{ fontWeight: 'bold', fontSize: '0.75rem', marginBottom: '0.2rem', display: 'inline-block' }}>
-                                ðŸŸ¢ General Upload
-                              </span>
-                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Unreferenced asset.</div>
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <a 
-                            href={`/api/image-proxy?url=${encodeURIComponent(file.url)}`} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="btn btn-secondary" 
-                            style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
-                          >
-                            ðŸ‘ï¸ View Image
-                          </a>
-                        </td>
+                      <tr key={file.url} className={`${file.isProtected ? 'is-protected' : ''}${isSelected ? ' is-selected' : ''}`}>
+                        <td className="storage-checkbox-column"><input type="checkbox" aria-label={`Select ${file.pathname}`} checked={isSelected} onChange={() => toggleSelectBlob(file.url, file.isProtected, file.protectionNote)} /></td>
+                        <td><strong className="storage-model-name storage-path">{file.pathname}</strong></td>
+                        <td className="storage-size">{file.sizeKB} KB</td>
+                        <td>{new Date(file.uploadedAt).toLocaleDateString()}</td>
+                        <td><span className={`storage-access-label ${file.isProtected ? 'is-protected' : 'is-safe'}`}>{file.isProtected ? (file.protectedType === 'pdf_template' ? 'Report template' : 'Assessment image') : 'Unreferenced'}</span></td>
+                        <td><a href={`/api/image-proxy?url=${encodeURIComponent(file.url)}`} target="_blank" rel="noreferrer" className="storage-view-link">View file</a></td>
                       </tr>
                     );
                   })}
@@ -614,8 +398,8 @@ export default function StoragePage() {
               </table>
             </div>
           )}
-        </div>
+        </section>
       )}
-    </div>
+    </main>
   );
 }

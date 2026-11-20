@@ -9,55 +9,106 @@ import { compressImage } from '@frontend/lib/compressImage';
 import { getBlobImageSrc } from '@frontend/lib/getBlobImageSrc';
 import { inputSchemas, validateImageFiles, validateInput } from '@/lib/validation';
 
+const SELECTION_MODES = [
+  { value: 'single', title: 'Choose one', description: 'Candidates select one response.' },
+  { value: 'multiple', title: 'Choose all that apply', description: 'Candidates can select several responses.' },
+];
+
+const ANSWER_STYLES = [
+  { value: 'text', title: 'Text choices', description: 'Show labeled answer choices.' },
+  { value: 'rating_scale', title: 'Rating scale', description: 'Offer ordered responses, such as agreement levels.' },
+  { value: 'image_choice', title: 'Image choices', description: 'Show an image with each response.' },
+];
+
+const ANSWER_FORMATS = {
+  single_select: { heading: 'Build answer choices', guidance: 'Candidates select one choice. Set the score weight for each response.', choiceLabel: 'Answer choice', imageLabel: 'Image', imageHint: 'Attach an image to this choice', addLabel: 'Add answer choice' },
+  multi_select: { heading: 'Build answer choices', guidance: 'Candidates can select several choices. Positive score weights are added together.', choiceLabel: 'Answer choice', imageLabel: 'Image', imageHint: 'Attach an image to this choice', addLabel: 'Add answer choice' },
+  rating_scale: { heading: 'Build the rating scale', guidance: 'Use ordered responses on a consistent scale. Adjust the labels and score weights to fit your question.', choiceLabel: 'Scale response', imageLabel: 'Image', imageHint: 'Attach an image to this response', addLabel: 'Add scale point' },
+  image_choice: { heading: 'Build image choices', guidance: 'Add a descriptive label and an image for each visual response.', choiceLabel: 'Image choice label', imageLabel: 'Choice image', imageHint: 'Required for image choices', addLabel: 'Add image choice' },
+  multi_image_choice: { heading: 'Build image choices', guidance: 'Add a descriptive label and an image for each visual response. Candidates can select several.', choiceLabel: 'Image choice label', imageLabel: 'Choice image', imageHint: 'Required for image choices', addLabel: 'Add image choice' },
+};
+
+const createEmptyOption = () => ({ id: null, text: '', score: 0, image: null, newImageFile: null, clearImage: false });
+
+const createOptions = (questionType) => {
+  const texts = questionType === 'rating_scale'
+    ? ['Strongly disagree', 'Disagree', 'Neither agree nor disagree', 'Agree', 'Strongly agree']
+    : [];
+  return Array.from({ length: questionType === 'rating_scale' ? 5 : 4 }, (_, index) => ({
+    ...createEmptyOption(),
+    text: texts[index] || '',
+    score: questionType === 'rating_scale' ? index + 1 : 0,
+  }));
+};
+
 export default function EditQuestionClient({ examId, question, initialOptions }) {
   const { notify } = useAlerts();
   const router = useRouter();
 
   const [text, setText] = useState(question.text);
-  const [questionType, setQuestionType] = useState(question.questionType);
+  const [selectionMode, setSelectionMode] = useState(['multi_select', 'multi_image_choice'].includes(question.questionType) ? 'multiple' : 'single');
+  const [answerStyle, setAnswerStyle] = useState(question.questionType === 'rating_scale' ? 'rating_scale' : question.questionType.includes('image_choice') ? 'image_choice' : 'text');
   const [order, setOrder] = useState(question.order);
+  const [estimatedTimeSeconds, setEstimatedTimeSeconds] = useState(question.estimatedTimeSeconds || 0);
   
   const [imageFile, setImageFile] = useState(null);
   const [clearImage, setClearImage] = useState(false);
 
-  // Options state containing: { id, text, score, image, newImageFile, clearImage }
-  const [options, setOptions] = useState(
-    initialOptions.map(opt => ({
-      id: opt.id,
-      text: opt.text,
-      score: opt.score,
-      image: opt.image,
-      newImageFile: null,
-      clearImage: false
-    }))
-  );
+  const [optionsByType, setOptionsByType] = useState(() => Object.fromEntries(
+    ['single_select', 'multi_select', 'rating_scale', 'image_choice', 'multi_image_choice'].map((value) => [value, value === question.questionType
+      ? initialOptions.map((option) => ({
+          id: option.id,
+          text: option.text,
+          score: option.score,
+          image: option.image,
+          newImageFile: null,
+          clearImage: false,
+        }))
+      : createOptions(value)]),
+  ));
 
   const [loading, setLoading] = useState(false);
+  const questionType = answerStyle === 'rating_scale'
+    ? 'rating_scale'
+    : answerStyle === 'image_choice'
+      ? (selectionMode === 'multiple' ? 'multi_image_choice' : 'image_choice')
+      : (selectionMode === 'multiple' ? 'multi_select' : 'single_select');
+  const options = optionsByType[questionType];
+
+  const updateCurrentOptions = (update) => setOptionsByType((current) => ({
+    ...current,
+    [questionType]: typeof update === 'function' ? update(current[questionType]) : update,
+  }));
+
+  const handleAnswerStyleChange = (nextStyle) => {
+    setAnswerStyle(nextStyle);
+    if (nextStyle === 'rating_scale') setSelectionMode('single');
+  };
 
   const handleOptionChange = (index, field, value) => {
-    const updated = [...options];
-    updated[index][field] = value;
-    setOptions(updated);
+    updateCurrentOptions((current) => current.map((option, optionIndex) => optionIndex === index ? { ...option, [field]: value } : option));
   };
 
-  const addOptionField = () => {
-    setOptions([...options, { id: null, text: '', score: 0.0, image: null, newImageFile: null, clearImage: false }]);
-  };
+  const addOptionField = () => updateCurrentOptions((current) => [...current, createEmptyOption()]);
 
   const removeOptionField = (index) => {
     if (options.length <= 1) {
       notify('A question must have at least one option.');
       return;
     }
-    setOptions(options.filter((_, i) => i !== index));
+    updateCurrentOptions((current) => current.filter((_, optionIndex) => optionIndex !== index));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const filledOptions = options.filter(opt => opt.text.trim());
-    const validation = validateInput(inputSchemas.question, { text, questionType, order, options: filledOptions });
+    const validation = validateInput(inputSchemas.question, { text, questionType, estimatedTimeSeconds, order, options: filledOptions });
     if (!validation.success) {
       notify(validation.message, 'warning');
+      return;
+    }
+    if ((questionType === 'image_choice' || questionType === 'multi_image_choice') && filledOptions.some((option) => !option.newImageFile && (!option.image || option.clearImage))) {
+      notify('Add an image for every image choice.', 'warning');
       return;
     }
     const imageError = validateImageFiles([imageFile, ...filledOptions.map((option) => option.newImageFile)]);
@@ -72,6 +123,7 @@ export default function EditQuestionClient({ examId, question, initialOptions })
       const formData = new FormData();
       formData.append('text', text);
       formData.append('questionType', questionType);
+      formData.append('estimatedTimeSeconds', String(validation.data.estimatedTimeSeconds));
       formData.append('order', order);
 
       if (clearImage) {
@@ -117,191 +169,69 @@ export default function EditQuestionClient({ examId, question, initialOptions })
     }
   };
 
+  const filledOptions = options.filter((option) => option.text.trim());
+  const answerFormat = ANSWER_FORMATS[questionType];
+  const maximumScore = filledOptions.length
+    ? questionType === 'multi_select' || questionType === 'multi_image_choice'
+      ? filledOptions.reduce((sum, option) => sum + Math.max(0, Number(option.score) || 0), 0)
+      : Math.max(0, ...filledOptions.map((option) => Number(option.score) || 0))
+    : 0;
+
   return (
-    <div>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <Link href={`/admin/exams/${examId}`} style={{ color: 'var(--text-muted)', textDecoration: 'none', fontSize: '0.9rem' }}>
-          &larr; Back to Builder
-        </Link>
-      </div>
+    <main className="question-editor-page">
+      <nav className="question-editor-breadcrumb" aria-label="Breadcrumb"><Link href={`/admin/exams/${examId}`}>Assessment builder</Link><span aria-hidden="true">/</span><span>Edit question</span></nav>
+      <header className="question-editor-heading"><div><span className="question-editor-kicker">QUESTION DESIGN</span><h1>Edit question</h1><p>Adjust how candidates respond, the answer style, prompt, media, or score weights.</p></div><div className="question-editor-summary"><span>Section timing</span><strong>Configured at section level</strong></div></header>
 
-      <h1 style={{ fontSize: '2.2rem', marginBottom: '2.5rem' }}>Edit Question</h1>
-
-      <div className="glass-card">
-        <form onSubmit={handleSubmit} encType="multipart/form-data">
-          
-          <h3 style={{ borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '1.5rem', color: '#fff' }}>
-            Question Core Metadata
-          </h3>
-
-          <div className="form-group">
-            <label htmlFor="text">Question Text</label>
-            <textarea
-              id="text"
-              className="form-control"
-              rows={3}
-              placeholder="e.g. Which of the following best describes your reaction under stress?"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              disabled={loading}
-              required
-            />
+      <form className="question-editor-form" onSubmit={handleSubmit} encType="multipart/form-data">
+        <section className="question-editor-panel" aria-labelledby="question-type-title">
+          <div className="question-panel-heading"><div><span className="question-editor-kicker">STEP 1</span><h2 id="question-type-title">Choose how candidates respond</h2><p>Set the number of responses, then choose how the options are shown.</p></div></div>
+          <div className="question-selection-grid" aria-label="Number of responses">
+            {SELECTION_MODES.map((mode) => <button key={mode.value} type="button" className={`question-type-card${selectionMode === mode.value ? ' is-selected' : ''}`} onClick={() => setSelectionMode(mode.value)} aria-pressed={selectionMode === mode.value} disabled={loading || (answerStyle === 'rating_scale' && mode.value === 'multiple')}><span className="question-type-radio" aria-hidden="true" /><strong>{mode.title}</strong><span>{mode.description}</span></button>)}
           </div>
-
-          <div className="grid-1-1" style={{ marginBottom: '1.5rem' }}>
-            <div className="form-group">
-              <label htmlFor="questionType">Question Type</label>
-              <select
-                id="questionType"
-                className="form-control"
-                value={questionType}
-                onChange={(e) => setQuestionType(e.target.value)}
-                disabled={loading}
-              >
-                <option value="single_select">Single Select (Radio Buttons)</option>
-                <option value="multi_select">Multi-Select (Checkboxes)</option>
-              </select>
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="order">Sorting Order</label>
-              <input
-                type="number"
-                id="order"
-                className="form-control"
-                value={order}
-                onChange={(e) => setOrder(Number(e.target.value))}
-                disabled={loading}
-                required
-              />
+          <div className="question-answer-style">
+            <div className="question-answer-style-heading"><strong>Answer style</strong><span>Rating scales use one response; text and image choices can use either selection mode.</span></div>
+            <div className="question-style-grid" aria-label="Answer style">
+              {ANSWER_STYLES.map((style) => <button key={style.value} type="button" className={`question-type-card${answerStyle === style.value ? ' is-selected' : ''}`} onClick={() => handleAnswerStyleChange(style.value)} aria-pressed={answerStyle === style.value} disabled={loading}><span className="question-type-radio" aria-hidden="true" /><strong>{style.title}</strong><span>{style.description}</span></button>)}
             </div>
           </div>
+        </section>
 
-          {/* Question Image View and Update */}
-          <div className="form-group" style={{ marginBottom: '2.5rem' }}>
-            <label htmlFor="image">Question Image</label>
-            {question.image && !clearImage && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1rem', background: 'rgba(0,0,0,0.2)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', width: 'fit-content' }}>
-                <img src={getBlobImageSrc(question.image)} alt="Question Graphic" style={{ maxHeight: '80px', borderRadius: '4px' }} />
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', margin: 0 }}>
-                  <input
-                    type="checkbox"
-                    checked={clearImage}
-                    onChange={(e) => setClearImage(e.target.checked)}
-                  />
-                  <span>Delete current image</span>
-                </label>
-              </div>
-            )}
-            <input
-              type="file"
-              id="image"
-              accept="image/*"
-              className="form-control"
-              onChange={(e) => {
-                setImageFile(e.target.files[0] || null);
-                setClearImage(false);
-              }}
-              disabled={loading}
-            />
+        <section className="question-editor-panel" aria-labelledby="prompt-title">
+          <div className="question-panel-heading"><div><span className="question-editor-kicker">STEP 2</span><h2 id="prompt-title">Question prompt</h2><p>Use clear wording that is comfortable for the intended age group.</p></div></div>
+          <div className="question-form-grid">
+            <div className="question-form-field question-prompt-field"><label htmlFor="question-prompt">Question text</label><textarea id="question-prompt" rows={4} maxLength={5000} value={text} onChange={(event) => setText(event.target.value)} disabled={loading} required /><small>{text.length} / 5,000 characters</small></div>
+            <div className="question-form-field"><label htmlFor="question-order">Question order</label><input id="question-order" type="number" min={0} max={10000} value={order} onChange={(event) => setOrder(Number(event.target.value))} disabled={loading} required /><small>Position within this section.</small></div>
+            <div className="question-form-field"><label htmlFor="question-time">Suggested time</label><div className="question-time-input"><input id="question-time" type="number" min={0} max={3600} value={estimatedTimeSeconds} onChange={(event) => setEstimatedTimeSeconds(event.target.value)} disabled={loading} required /><span>seconds</span></div><small>Planning guide only; the section timer is enforced.</small></div>
           </div>
+          <div className="question-form-field question-image-field"><label htmlFor="question-image">Question image <span>Optional</span></label>
+            {question.image && !clearImage && <div className="question-current-image"><img src={getBlobImageSrc(question.image)} alt="Current question visual" /><label><input type="checkbox" checked={clearImage} onChange={(event) => setClearImage(event.target.checked)} /> Remove current image</label></div>}
+            <input type="file" id="question-image" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { setImageFile(event.target.files?.[0] || null); setClearImage(false); }} disabled={loading} /><small>{imageFile?.name || 'Replace or add a diagram, photo, or illustration (up to 5 MB).'}</small>
+          </div>
+        </section>
 
-          <h3 style={{ borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '1.5rem', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Answer Options & Weightings</span>
-            <button
-              type="button"
-              onClick={addOptionField}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '0.3rem 0.8rem' }}
-              disabled={loading}
-            >
-              + Add Choice Option
-            </button>
-          </h3>
-
-          {/* Options List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {options.map((opt, index) => (
-              <div key={index} style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', padding: '1rem', borderRadius: '12px', flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 'bold', color: 'var(--accent-cyan)', fontSize: '0.9rem' }}>
-                  #{index + 1}
-                </span>
-
-                <div className="form-group" style={{ flex: 3, minWidth: '200px', margin: 0 }}>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Option text choice"
-                    value={opt.text}
-                    onChange={(e) => handleOptionChange(index, 'text', e.target.value)}
-                    disabled={loading}
-                    required
-                  />
+        <section className="question-editor-panel" aria-labelledby="answers-title">
+          <div className="question-panel-heading question-answers-heading"><div><span className="question-editor-kicker">STEP 3</span><h2 id="answers-title">{answerFormat.heading}</h2><p>{answerFormat.guidance}</p></div><button type="button" className="question-add-option" onClick={addOptionField} disabled={loading}>{answerFormat.addLabel}</button></div>
+          <div className="question-options-list">
+            {options.map((option, index) => (
+              <article className="question-option-editor" key={option.id || index}>
+                <span className="question-option-number">{String(index + 1).padStart(2, '0')}</span>
+                <div className="question-option-fields">
+                  <div className="question-form-field"><label htmlFor={`option-text-${index}`}>{answerFormat.choiceLabel}</label><input id={`option-text-${index}`} type="text" maxLength={1000} placeholder={answerStyle === 'image_choice' ? `Image choice ${index + 1}` : answerStyle === 'rating_scale' ? `Scale point ${index + 1}` : `Choice ${index + 1}`} value={option.text} onChange={(event) => handleOptionChange(index, 'text', event.target.value)} disabled={loading} required /></div>
+                  <div className="question-form-field question-option-score"><label htmlFor={`option-score-${index}`}>Score weight</label><input id={`option-score-${index}`} type="number" step="0.1" min={-100000} max={100000} value={option.score} onChange={(event) => handleOptionChange(index, 'score', event.target.value)} disabled={loading} /><small>Points for this response</small></div>
+                  <div className="question-form-field question-option-image"><label htmlFor={`option-image-${index}`}>{answerFormat.imageLabel} {answerStyle !== 'image_choice' && <span>Optional</span>}</label>
+                    {option.image && !option.clearImage && <div className="question-current-image is-option"><img src={getBlobImageSrc(option.image)} alt={`Current image for choice ${index + 1}`} /><label><input type="checkbox" checked={option.clearImage} onChange={(event) => handleOptionChange(index, 'clearImage', event.target.checked)} /> Remove</label></div>}
+                    <input id={`option-image-${index}`} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { handleOptionChange(index, 'newImageFile', event.target.files?.[0] || null); handleOptionChange(index, 'clearImage', false); }} disabled={loading} /><small>{option.newImageFile?.name || answerFormat.imageHint}</small>
+                  </div>
                 </div>
-
-                <div className="form-group" style={{ flex: 2, minWidth: '150px', margin: 0 }}>
-                  {opt.image && !opt.clearImage && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', background: 'rgba(0,0,0,0.1)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--glass-border)', width: 'fit-content' }}>
-                      <img src={getBlobImageSrc(opt.image)} alt="Thumbnail" style={{ maxHeight: '30px', borderRadius: '4px' }} />
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.75rem', margin: 0 }}>
-                        <input
-                          type="checkbox"
-                          checked={opt.clearImage}
-                          onChange={(e) => handleOptionChange(index, 'clearImage', e.target.checked)}
-                        />
-                        <span>Clear</span>
-                      </label>
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="form-control"
-                    title="Upload Option Image"
-                    onChange={(e) => {
-                      handleOptionChange(index, 'newImageFile', e.target.files[0] || null);
-                      handleOptionChange(index, 'clearImage', false);
-                    }}
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="form-group" style={{ flex: 1, minWidth: '100px', margin: 0 }}>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="form-control"
-                    placeholder="Score"
-                    value={opt.score}
-                    onChange={(e) => handleOptionChange(index, 'score', e.target.value)}
-                    disabled={loading}
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => removeOptionField(index)}
-                  className="btn btn-danger"
-                  style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem', height: '40px' }}
-                  disabled={loading}
-                >
-                  Remove
-                </button>
-              </div>
+                <button type="button" className="question-remove-option" onClick={() => removeOptionField(index)} disabled={loading || options.length === 1} aria-label={`Remove choice ${index + 1}`}>Remove</button>
+              </article>
             ))}
           </div>
-
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '3rem' }}>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Saving...' : 'Save Question & Options'}
-            </button>
-            <Link href={`/admin/exams/${examId}`} className="btn btn-secondary" style={{ pointerEvents: loading ? 'none' : 'auto' }}>
-              Cancel
-            </Link>
-          </div>
-
-        </form>
-      </div>
-    </div>
+          <div className="question-score-summary"><div><span>Maximum score for this question</span><small>{['multi_select', 'multi_image_choice'].includes(questionType) ? 'Sum of positive choice weights' : 'Highest positive choice weight'}</small></div><strong>{maximumScore.toLocaleString(undefined, { maximumFractionDigits: 2 })}<span> pts</span></strong></div>
+        </section>
+        <aside className="question-timing-note"><strong>Timing is managed by the section.</strong><span>Candidates answer all questions in this section within the section time limit.</span></aside>
+        <div className="question-editor-actions"><Link href={`/admin/exams/${examId}`} className="question-cancel">Cancel</Link><button type="submit" className="question-save" disabled={loading}>{loading ? 'Saving question…' : 'Save question changes'}</button></div>
+      </form>
+    </main>
   );
 }

@@ -33,7 +33,7 @@ function LoginForm() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(validation.data),
       });
 
       const data = await res.json().catch(() => null);
@@ -86,7 +86,7 @@ function LoginForm() {
           </div>
         )}
 
-        <form onSubmit={handleLogin}>
+        <form noValidate onSubmit={handleLogin}>
           <div className="form-group">
             <label htmlFor="username">Username</label>
             <input
@@ -97,7 +97,6 @@ function LoginForm() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
-              required
             />
           </div>
 
@@ -111,7 +110,6 @@ function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              required
             />
             <div style={{ textAlign: 'right', marginTop: '0.55rem' }}>
               <a href="/forgot-password" style={{ color: 'var(--primary)', fontSize: '0.85rem', fontWeight: 600 }}>Forgot password?</a>

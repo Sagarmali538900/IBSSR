@@ -47,6 +47,7 @@ export async function GET(request, { params }) {
         const qData = {
           text: question.text,
           question_type: question.questionType,
+          estimated_time_seconds: question.estimatedTimeSeconds || 0,
           order: question.order,
           image: question.image || null,
           options: []

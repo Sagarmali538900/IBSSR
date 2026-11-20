@@ -20,7 +20,7 @@ export async function GET(request, { params }) {
   return NextResponse.json({
     exam: { id: exam._id.toString(), title: exam.title, description: exam.description || '', createdById: exam.createdBy?._id?.toString(), createdByName: exam.createdBy?.username || 'System' },
     sections: sections.map((item) => ({ id: item._id.toString(), name: item.name, description: item.description || '', durationMinutes: item.durationMinutes, durationSeconds: item.durationSeconds, order: item.order })),
-    questions: questions.map((item) => ({ id: item._id.toString(), sectionId: item.sectionId.toString(), text: item.text, image: item.image || null, questionType: item.questionType, order: item.order })),
+    questions: questions.map((item) => ({ id: item._id.toString(), sectionId: item.sectionId.toString(), text: item.text, image: item.image || null, questionType: item.questionType, estimatedTimeSeconds: item.estimatedTimeSeconds || 0, order: item.order })),
     options: options.map((item) => ({ id: item._id.toString(), questionId: item.questionId.toString(), text: item.text, image: item.image || null, score: item.score })),
   });
 }

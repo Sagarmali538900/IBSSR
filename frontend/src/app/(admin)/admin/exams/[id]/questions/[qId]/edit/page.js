@@ -14,6 +14,7 @@ export default async function EditQuestionPage({ params }) {
       text: data.question.text,
       image: data.question.image || null,
       questionType: data.question.questionType,
+      estimatedTimeSeconds: data.question.estimatedTimeSeconds || 0,
       order: data.question.order,
     }}
     initialOptions={(data.options || []).map((option) => ({ id: option._id, text: option.text, image: option.image || null, score: option.score }))}

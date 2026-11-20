@@ -69,6 +69,7 @@ export async function POST(request) {
             sectionsDict[secKey].questions[qKey] = {
               text: q.text,
               questionType: q.question_type || 'single_select',
+              estimatedTimeSeconds: q.estimated_time_seconds || 0,
               order: qOrder,
               image: q.image || null,
               options: []
@@ -131,6 +132,7 @@ export async function POST(request) {
           const optText = val(12);
           const optImage = val(13);
           const optScore = val(14);
+          const qTime = val(15);
 
           if (!examTitle && rowExamTitle) {
             examTitle = rowExamTitle.toString().trim();
@@ -167,6 +169,7 @@ export async function POST(request) {
               secData.questions[qKey] = {
                 text: qTextStr,
                 questionType: qType ? qType.toString().trim() : 'single_select',
+                estimatedTimeSeconds: qTime !== null ? Number(qTime) : 0,
                 order: qOrderNum,
                 image: qImage ? qImage.toString().trim() : null,
                 options: []
@@ -269,6 +272,7 @@ export async function POST(request) {
           sectionId: section._id,
           text: qVal.text,
           questionType: qVal.questionType,
+          estimatedTimeSeconds: qVal.estimatedTimeSeconds || 0,
           order: qVal.order,
           image: qVal.image
         });

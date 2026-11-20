@@ -2,7 +2,7 @@
 
 import { useAlerts } from '@/app/components/AlertProvider';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { inputSchemas, validateInput } from '@/lib/validation';
 
@@ -15,9 +15,39 @@ export default function FranchisesClient({ franchises }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [creating, setCreating] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const registerButtonRef = useRef(null);
 
   // Toggle State
   const [togglingId, setTogglingId] = useState(null);
+
+  useEffect(() => {
+    if (!isCreateOpen) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setIsCreateOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleKeyDown);
+      registerButtonRef.current?.focus();
+    };
+  }, [isCreateOpen]);
+
+  const filteredFranchises = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return franchises.filter((franchise) => {
+      const matchesQuery = !query || `${franchise.username} ${franchise.email}`.toLowerCase().includes(query);
+      const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' ? franchise.isActive : !franchise.isActive);
+      return matchesQuery && matchesStatus;
+    });
+  }, [franchises, search, statusFilter]);
+
+  const activeCount = franchises.filter((franchise) => franchise.isActive).length;
+  const inactiveCount = franchises.length - activeCount;
 
   const handleCreateFranchise = async (e) => {
     e.preventDefault();
@@ -40,6 +70,7 @@ export default function FranchisesClient({ franchises }) {
         setUsername('');
         setEmail('');
         setPassword('');
+        setIsCreateOpen(false);
         router.refresh();
       } else {
         const err = await res.json();
@@ -53,8 +84,8 @@ export default function FranchisesClient({ franchises }) {
   };
 
   const handleToggleFranchise = async (id, name, active) => {
-    const action = active ? 'disable/deactivate' : 'enable/reactivate';
-    if (!await confirmAction(`${action} access for ${name}?`, { title: `${action} partner access?`, confirmLabel: action, tone: action === 'Deactivate' ? 'warning' : 'info' })) {
+    const action = active ? 'Deactivate' : 'Reactivate';
+    if (!await confirmAction(`${action} access for ${name}?`, { title: `${action} partner access?`, confirmLabel: action, tone: active ? 'warning' : 'info' })) {
       return;
     }
 
@@ -80,138 +111,129 @@ export default function FranchisesClient({ franchises }) {
   };
 
   return (
-    <div>
-      <h1 style={{ fontSize: '2.2rem', marginBottom: '2rem' }}>Franchise Partners</h1>
+    <main className="franchise-page">
+      <header className="franchise-page-heading">
+        <div>
+          <span className="franchise-eyebrow">PARTNER MANAGEMENT</span>
+          <h1>Franchise partners</h1>
+          <p>Manage partner accounts and their access to the assessment portal.</p>
+        </div>
+        <button ref={registerButtonRef} type="button" className="franchise-register-button" onClick={() => setIsCreateOpen(true)}>
+          Register franchise
+        </button>
+      </header>
 
-      <div className="grid-2-1">
-        
-        {/* Left Column: Franchises Table */}
-        <div className="glass-card">
-          <h3 style={{ marginBottom: '1.25rem', color: '#fff', fontSize: '1.3rem' }}>Registered Franchises</h3>
-          
-          {franchises.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem 0' }}>
-              No franchise logs created yet. Use the creation form on the right.
-            </p>
-          ) : (
-            <div className="table-container">
-              <table className="custom-table">
-                <thead>
-                  <tr>
-                    <th>Username</th>
-                    <th>Email Address</th>
-                    <th>Date Joined</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+      <section className="franchise-summary" aria-label="Partner account summary">
+        <article><span>Total partners</span><strong>{franchises.length}</strong></article>
+        <article><span>Active</span><strong>{activeCount}</strong></article>
+        <article><span>Deactivated</span><strong>{inactiveCount}</strong></article>
+      </section>
+
+      <section className="franchise-directory" aria-labelledby="franchise-directory-title">
+        <div className="franchise-directory-heading">
+          <div>
+            <span className="franchise-eyebrow">DIRECTORY</span>
+            <h2 id="franchise-directory-title">All partners</h2>
+          </div>
+          <span className="franchise-result-count">{filteredFranchises.length} {filteredFranchises.length === 1 ? 'partner' : 'partners'}</span>
+        </div>
+
+        <div className="franchise-directory-tools">
+          <label className="franchise-search-label" htmlFor="franchise-search">Search partners</label>
+          <input
+            id="franchise-search"
+            className="franchise-search"
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search by username or email"
+          />
+          <div className="franchise-filters" aria-label="Filter partner status">
+            {[
+              { id: 'all', label: 'All', count: franchises.length },
+              { id: 'active', label: 'Active', count: activeCount },
+              { id: 'inactive', label: 'Deactivated', count: inactiveCount },
+            ].map((filter) => (
+              <button key={filter.id} type="button" className={statusFilter === filter.id ? 'is-active' : ''} aria-pressed={statusFilter === filter.id} onClick={() => setStatusFilter(filter.id)}>
+                {filter.label}<span>{filter.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filteredFranchises.length === 0 ? (
+          <div className="franchise-empty-state">
+            <strong>{franchises.length === 0 ? 'No franchise partners yet' : 'No partners match these filters'}</strong>
+            <p>{franchises.length === 0 ? 'Register a partner to give them access to the portal.' : 'Try a different search or status filter.'}</p>
+            {franchises.length === 0 && <button type="button" className="franchise-text-button" onClick={() => setIsCreateOpen(true)}>Register the first franchise</button>}
+          </div>
+        ) : (
+          <div className="franchise-table-wrap">
+            <table className="franchise-table">
+              <thead><tr><th>Username</th><th>Email address</th><th>Date joined</th><th>Status</th><th>Account access</th></tr></thead>
+              <tbody>
+                {filteredFranchises.map((franchise) => (
+                  <tr key={franchise.id}>
+                    <td><strong className="franchise-username">{franchise.username}</strong></td>
+                    <td><a className="franchise-email" href={`mailto:${franchise.email}`}>{franchise.email}</a></td>
+                    <td className="franchise-date">{new Date(franchise.dateJoined).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                    <td><span className={`franchise-status ${franchise.isActive ? 'is-active' : 'is-inactive'}`}>{franchise.isActive ? 'Active' : 'Deactivated'}</span></td>
+                    <td>
+                      <button type="button" onClick={() => handleToggleFranchise(franchise.id, franchise.username, franchise.isActive)} disabled={togglingId === franchise.id} className={`franchise-access-button ${franchise.isActive ? 'is-deactivate' : 'is-reactivate'}`}>
+                        {togglingId === franchise.id ? 'Updating…' : franchise.isActive ? 'Deactivate' : 'Reactivate'}
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {franchises.map((f) => (
-                    <tr key={f.id}>
-                      <td>
-                        <strong>{f.username}</strong>
-                      </td>
-                      <td>{f.email}</td>
-                      <td style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                        {new Date(f.dateJoined).toLocaleDateString()}
-                      </td>
-                      <td>
-                        <span style={{
-                          padding: '0.2rem 0.5rem',
-                          borderRadius: '4px',
-                          fontSize: '0.8rem',
-                          fontWeight: 'bold',
-                          background: f.isActive ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'color-mix(in srgb, var(--accent-rose) 12%, transparent)',
-                          border: `1px solid ${f.isActive ? 'var(--accent-green)' : 'var(--accent-rose)'}`,
-                          color: f.isActive ? 'var(--accent-green)' : 'var(--accent-rose)'
-                        }}>
-                          {f.isActive ? 'Active' : 'Deactivated'}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          onClick={() => handleToggleFranchise(f.id, f.username, f.isActive)}
-                          disabled={togglingId === f.id}
-                          className="btn btn-secondary"
-                          style={{
-                            padding: '0.3rem 0.6rem',
-                            fontSize: '0.8rem',
-                            borderColor: f.isActive ? 'var(--accent-rose)' : 'var(--accent-green)',
-                            color: f.isActive ? 'var(--accent-rose)' : 'var(--accent-green)'
-                          }}
-                        >
-                          {togglingId === f.id ? 'Toggling...' : f.isActive ? 'Deactivate' : 'Reactivate'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {isCreateOpen && (
+        <div className="franchise-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !creating) setIsCreateOpen(false); }}>
+          <section className="franchise-modal" role="dialog" aria-modal="true" aria-labelledby="franchise-modal-title" aria-describedby="franchise-modal-description" onKeyDown={(event) => {
+            if (event.key !== 'Tab') return;
+            const focusable = event.currentTarget.querySelectorAll('button:not(:disabled), input:not(:disabled)');
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault();
+              last?.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first?.focus();
+            }
+          }}>
+            <div className="franchise-modal-heading">
+              <div>
+                <span className="franchise-eyebrow">NEW PARTNER</span>
+                <h2 id="franchise-modal-title">Register a franchise</h2>
+                <p id="franchise-modal-description">Create a partner login for the assessment portal.</p>
+              </div>
+              <button type="button" className="franchise-modal-close" onClick={() => setIsCreateOpen(false)} disabled={creating} aria-label="Close registration dialog">Close</button>
             </div>
-          )}
+
+            <form className="franchise-form" onSubmit={handleCreateFranchise}>
+              <label htmlFor="new-franchise-username">Franchise username</label>
+              <input id="new-franchise-username" type="text" autoComplete="username" placeholder="e.g. franchise_south" value={username} onChange={(event) => setUsername(event.target.value)} disabled={creating} required maxLength={80} autoFocus />
+
+              <label htmlFor="new-franchise-email">Email address</label>
+              <input id="new-franchise-email" type="email" autoComplete="email" placeholder="branch@example.com" value={email} onChange={(event) => setEmail(event.target.value)} disabled={creating} required maxLength={254} />
+
+              <label htmlFor="new-franchise-password">Temporary password</label>
+              <input id="new-franchise-password" type="password" autoComplete="new-password" placeholder="At least 12 characters" value={password} onChange={(event) => setPassword(event.target.value)} disabled={creating} required minLength={12} maxLength={128} />
+              <p className="franchise-form-help">Partner login details will be sent to this email address.</p>
+
+              <div className="franchise-modal-actions">
+                <button type="button" className="franchise-cancel-button" onClick={() => setIsCreateOpen(false)} disabled={creating}>Cancel</button>
+                <button type="submit" className="franchise-register-button" disabled={creating}>{creating ? 'Creating account…' : 'Create partner account'}</button>
+              </div>
+            </form>
+          </section>
         </div>
-
-        {/* Right Column: Creation Panel */}
-        <div className="glass-card">
-          <h3 style={{ borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '1.5rem', color: '#fff', fontSize: '1.3rem' }}>
-            Register New Franchise
-          </h3>
-          
-          <form onSubmit={handleCreateFranchise}>
-            <div className="form-group">
-              <label htmlFor="username">Franchise Username</label>
-              <input
-                type="text"
-                id="username"
-                className="form-control"
-                placeholder="e.g. franchise_south"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={creating}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="email">Email Address</label>
-              <input
-                type="email"
-                id="email"
-                className="form-control"
-                placeholder="e.g. branch@portal.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={creating}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="password">Login Password</label>
-              <input
-                type="password"
-                id="password"
-                className="form-control"
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={creating}
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary"
-              style={{ width: '100%', marginTop: '1.5rem' }}
-              disabled={creating}
-            >
-              {creating ? 'Creating Partner Account...' : 'Register Franchise Account'}
-            </button>
-          </form>
-        </div>
-
-      </div>
-    </div>
+      )}
+    </main>
   );
 }

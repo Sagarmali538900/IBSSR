@@ -43,7 +43,8 @@ export async function GET(request, { params }) {
       { header: 'Question Image Path', key: 'qImage' },
       { header: 'Option Text', key: 'optText' },
       { header: 'Option Image Path', key: 'optImage' },
-      { header: 'Option Score', key: 'optScore' }
+      { header: 'Option Score', key: 'optScore' },
+      { header: 'Suggested Time (Seconds)', key: 'qTime' }
     ];
     worksheet.columns = columns;
 
@@ -89,7 +90,11 @@ export async function GET(request, { params }) {
                 question.text,
                 question.questionType,
                 question.order,
-                question.image || ''
+                question.image || '',
+                '',
+                '',
+                '',
+                question.estimatedTimeSeconds || 0
               ]);
             } else {
               for (const option of options) {
@@ -107,7 +112,8 @@ export async function GET(request, { params }) {
                   question.image || '',
                   option.text,
                   option.image || '',
-                  option.score
+                  option.score,
+                  question.estimatedTimeSeconds || 0
                 ]);
               }
             }

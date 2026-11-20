@@ -3,7 +3,10 @@ import { z } from 'zod';
 const email = z.string().trim().email('Enter a valid email address.').max(254, 'Email address is too long.');
 const requiredText = (label, max = 120) => z.string().trim().min(1, `${label} is required.`).max(max, `${label} must be ${max} characters or fewer.`);
 const objectId = z.string().regex(/^[a-f\d]{24}$/i, 'A valid ID is required.');
-const numeric = (schema) => z.preprocess((value) => typeof value === 'string' && value.trim() === '' ? Number.NaN : value, z.coerce.number().pipe(schema));
+const numeric = (schema, invalidMessage = 'Enter a valid number.') => z.preprocess(
+  (value) => typeof value === 'string' && value.trim() === '' ? Number.NaN : value,
+  z.coerce.number({ error: invalidMessage }).pipe(schema),
+);
 const dateOfBirth = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter a valid date of birth.').refine((value) => {
   const date = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
@@ -26,15 +29,16 @@ export const inputSchemas = {
   section: z.object({
     name: requiredText('Section name', 120),
     description: z.string().trim().max(2000, 'Description must be 2,000 characters or fewer.'),
-    durationMinutes: numeric(z.number().int('Minutes must be a whole number.').min(0).max(1440)),
-    durationSeconds: numeric(z.number().int('Seconds must be a whole number.').min(0).max(59)),
-    order: numeric(z.number().int('Order must be a whole number.').min(0).max(10000)),
+    durationMinutes: numeric(z.number().int('Minutes must be a whole number.').min(0, 'Minutes cannot be negative.').max(1440, 'Minutes cannot exceed 1,440.'), 'Enter the section minutes.'),
+    durationSeconds: numeric(z.number().int('Seconds must be a whole number.').min(0, 'Seconds cannot be negative.').max(59, 'Seconds must be 59 or less.'), 'Enter the section seconds.'),
+    order: numeric(z.number().int('Order must be a whole number.').min(0, 'Sorting order cannot be negative.').max(10000, 'Sorting order cannot exceed 10,000.'), 'Enter a sorting order.'),
   }).superRefine((value, context) => {
     if (value.durationMinutes === 0 && value.durationSeconds === 0) context.addIssue({ code: 'custom', path: ['durationMinutes'], message: 'Section duration must be greater than zero.' });
   }),
   question: z.object({
     text: requiredText('Question text', 5000),
-    questionType: z.enum(['single_select', 'multi_select']),
+    questionType: z.enum(['single_select', 'multi_select', 'rating_scale', 'image_choice', 'multi_image_choice']),
+    estimatedTimeSeconds: numeric(z.number().int('Suggested time must be in whole seconds.').min(0).max(3600)),
     order: numeric(z.number().int('Order must be a whole number.').min(0).max(10000)),
     options: z.array(z.object({ text: z.string().trim().max(1000), score: numeric(z.number().finite('Score must be a number.').min(-100000).max(100000)) })).max(100)
       .superRefine((options, context) => {

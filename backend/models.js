@@ -37,7 +37,8 @@ const QuestionSchema = new mongoose.Schema({
   sectionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Section', required: true, index: true },
   text: { type: String, required: true },
   image: { type: String, default: null },
-  questionType: { type: String, enum: ['single_select', 'multi_select'], default: 'single_select' },
+  questionType: { type: String, enum: ['single_select', 'multi_select', 'rating_scale', 'image_choice', 'multi_image_choice'], default: 'single_select' },
+  estimatedTimeSeconds: { type: Number, default: 0 },
   order: { type: Number, default: 0 }
 });
 

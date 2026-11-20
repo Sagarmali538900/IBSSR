@@ -26,6 +26,19 @@ export async function GET(request, { params }) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
+    if (request.nextUrl.searchParams.get('view') === 'workspace') {
+      const sections = await Section.find({ examId: id }).sort({ order: 1 });
+      const questions = await Question.find({ sectionId: { $in: sections.map((item) => item._id) } }).sort({ order: 1 });
+      const options = await Option.find({ questionId: { $in: questions.map((item) => item._id) } });
+
+      return NextResponse.json({
+        exam: { id: exam._id.toString(), title: exam.title, description: exam.description || '', createdById: exam.createdBy?._id?.toString(), createdByName: exam.createdBy?.username || 'System' },
+        sections: sections.map((item) => ({ id: item._id.toString(), name: item.name, description: item.description || '', durationMinutes: item.durationMinutes, durationSeconds: item.durationSeconds, order: item.order })),
+        questions: questions.map((item) => ({ id: item._id.toString(), sectionId: item.sectionId.toString(), text: item.text, image: item.image || null, questionType: item.questionType, estimatedTimeSeconds: item.estimatedTimeSeconds || 0, order: item.order })),
+        options: options.map((item) => ({ id: item._id.toString(), questionId: item.questionId.toString(), text: item.text, image: item.image || null, score: item.score })),
+      });
+    }
+
     return NextResponse.json(exam);
   } catch (error) {
     return NextResponse.json({ message: error.message || 'Internal Server Error' }, { status: 500 });

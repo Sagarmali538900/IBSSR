@@ -2,6 +2,7 @@ const backendUrl = (process.env.BACKEND_URL || 'http://127.0.0.1:4001').replace(
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  devIndicators: false,
   async rewrites() {
     return [{ source: '/api/:path*', destination: `${backendUrl}/api/:path*` }];
   },

@@ -8,6 +8,8 @@ import { getBlobImageSrc } from '@frontend/lib/getBlobImageSrc';
 import Icon from '@/app/components/Icon';
 import { inputSchemas, validateInput } from '@/lib/validation';
 
+const formatSuggestedTime = (seconds) => seconds < 60 ? `${seconds}s` : `${Math.round(seconds / 60)} min`;
+
 export default function ExamRunClient({
   sessionId,
   section,
@@ -119,7 +121,7 @@ export default function ExamRunClient({
     const prevSelection = savedAnswers[questionId] || [];
     let updatedSelection = [];
 
-    if (questionType === 'single_select') {
+    if (!['multi_select', 'multi_image_choice'].includes(questionType)) {
       updatedSelection = [optionId];
     } else {
       // Multi select: toggle selection
@@ -227,8 +229,9 @@ export default function ExamRunClient({
             return (
               <div key={q.id} id={`question-card-${qIndex}`} className="glass-card" style={{ padding: '2rem' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-cyan)', textTransform: 'uppercase' }}>
-                  Question {qIndex + 1}
+                  Question {qIndex + 1} · {({ single_select: 'Choose one', multi_select: 'Choose all that apply', rating_scale: 'Select a rating', image_choice: 'Choose one image', multi_image_choice: 'Choose all images that apply' })[q.questionType] || 'Choose one'}
                 </span>
+                {q.estimatedTimeSeconds > 0 && <span className="candidate-question-time">Suggested time · {formatSuggestedTime(q.estimatedTimeSeconds)}</span>}
                 
                 <h3 style={{ color: '#fff', fontWeight: 500, fontSize: '1.25rem', marginTop: '0.25rem', marginBottom: '1.25rem' }}>
                   {q.text}
@@ -254,11 +257,11 @@ export default function ExamRunClient({
                 )}
 
                 {/* Choices Inputs */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className={`candidate-answer-options ${q.questionType}`}>
                   {q.options.map((opt) => {
                     const isChecked = chosenOptionIds.includes(opt.id);
-                    const wrapperClass = `option-wrapper${isChecked ? ' checked' : ''}`;
-                    const inputType = q.questionType === 'single_select' ? 'radio' : 'checkbox';
+                    const wrapperClass = `option-wrapper${isChecked ? ' checked' : ''}${['image_choice', 'multi_image_choice'].includes(q.questionType) ? ' is-image-choice' : ''}${q.questionType === 'rating_scale' ? ' is-rating-choice' : ''}`;
+                    const inputType = ['multi_select', 'multi_image_choice'].includes(q.questionType) ? 'checkbox' : 'radio';
 
                     return (
                       <label key={opt.id} className={wrapperClass}>
@@ -276,7 +279,7 @@ export default function ExamRunClient({
                           {opt.image && (
                             <img
                               src={getBlobImageSrc(opt.image)}
-                              alt="Choice Graphic"
+                              alt={`Answer choice ${opt.text || ''}`.trim()}
                               style={{
                                 maxHeight: '280px',
                                 maxWidth: '100%',
