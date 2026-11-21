@@ -4,7 +4,8 @@ import { useAlerts } from '@/app/components/AlertProvider';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { inputSchemas, validateInput } from '@/lib/validation';
+import FieldError from '@/app/components/FieldError';
+import { getValidationErrors, inputSchemas } from '@/lib/validation';
 
 export default function SectionForm({ examId, section = null }) {
   const { notify } = useAlerts();
@@ -15,16 +16,48 @@ export default function SectionForm({ examId, section = null }) {
   const [durationMinutes, setDurationMinutes] = useState(section?.durationMinutes ?? 10);
   const [durationSeconds, setDurationSeconds] = useState(section?.durationSeconds ?? 0);
   const [order, setOrder] = useState(section?.order ?? 0);
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const totalDurationSeconds = Math.max(0, Number(durationMinutes || 0) * 60 + Number(durationSeconds || 0));
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const validation = validateInput(inputSchemas.section, { name, description, durationMinutes, durationSeconds, order });
-    if (!validation.success) {
-      notify(validation.message, 'warning');
+  const validateField = (field, value, values = {}) => {
+    const data = {
+      name,
+      description,
+      durationMinutes,
+      durationSeconds,
+      order,
+      ...values,
+      [field]: value,
+    };
+    const result = inputSchemas.section.safeParse(data);
+    if (field === 'durationMinutes' || field === 'durationSeconds') {
+      const durationIssues = result.success ? [] : result.error.issues;
+      setErrors((current) => ({
+        ...current,
+        durationMinutes: durationIssues.find((issue) => issue.path[0] === 'durationMinutes')?.message || '',
+        durationSeconds: durationIssues.find((issue) => issue.path[0] === 'durationSeconds')?.message || '',
+      }));
       return;
     }
+    const fieldError = result.success ? '' : result.error.issues.find((issue) => issue.path[0] === field)?.message || '';
+    setErrors((current) => ({ ...current, [field]: fieldError }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const validation = inputSchemas.section.safeParse({ name, description, durationMinutes, durationSeconds, order });
+    if (!validation.success) {
+      const nextErrors = getValidationErrors(validation);
+      setErrors(nextErrors);
+      const firstInvalidField = ['name', 'durationMinutes', 'durationSeconds', 'order'].find((field) => nextErrors[field]);
+      if (firstInvalidField) {
+        const inputId = firstInvalidField === 'durationMinutes' ? 'minutes' : firstInvalidField === 'durationSeconds' ? 'seconds' : firstInvalidField;
+        document.getElementById(inputId)?.focus();
+      }
+      return;
+    }
+    setErrors({});
 
     setLoading(true);
     try {
@@ -71,9 +104,16 @@ export default function SectionForm({ examId, section = null }) {
                 className="form-control"
                 placeholder="e.g. Logical Reasoning"
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  if (errors.name) validateField('name', event.target.value);
+                }}
+                onBlur={() => validateField('name', name)}
                 disabled={loading}
+                aria-invalid={Boolean(errors.name)}
+                aria-describedby={errors.name ? 'name-error' : undefined}
               />
+              <FieldError id="name-error" message={errors.name} />
             </div>
 
             <div className="form-group">
@@ -83,9 +123,16 @@ export default function SectionForm({ examId, section = null }) {
                 id="order"
                 className="form-control"
                 value={order}
-                onChange={(event) => setOrder(event.target.value)}
+                onChange={(event) => {
+                  setOrder(event.target.value);
+                  if (errors.order) validateField('order', event.target.value);
+                }}
+                onBlur={() => validateField('order', order)}
                 disabled={loading}
+                aria-invalid={Boolean(errors.order)}
+                aria-describedby={errors.order ? 'order-error' : undefined}
               />
+              <FieldError id="order-error" message={errors.order} />
             </div>
           </div>
 
@@ -98,9 +145,16 @@ export default function SectionForm({ examId, section = null }) {
                 rows={3}
                 placeholder="Provide directions for this section..."
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
+                onChange={(event) => {
+                  setDescription(event.target.value);
+                  if (errors.description) validateField('description', event.target.value);
+                }}
+                onBlur={() => validateField('description', description)}
                 disabled={loading}
+                aria-invalid={Boolean(errors.description)}
+                aria-describedby={errors.description ? 'description-error' : undefined}
               />
+              <FieldError id="description-error" message={errors.description} />
             </div>
 
             <div className="section-duration-panel">
@@ -135,9 +189,16 @@ export default function SectionForm({ examId, section = null }) {
                     min={0}
                     className="form-control"
                     value={durationMinutes}
-                    onChange={(event) => setDurationMinutes(event.target.value)}
+                    onChange={(event) => {
+                      setDurationMinutes(event.target.value);
+                      if (errors.durationMinutes) validateField('durationMinutes', event.target.value);
+                    }}
+                    onBlur={() => validateField('durationMinutes', durationMinutes)}
                     disabled={loading}
+                    aria-invalid={Boolean(errors.durationMinutes)}
+                    aria-describedby={errors.durationMinutes ? 'minutes-error' : undefined}
                   />
+                  <FieldError id="minutes-error" message={errors.durationMinutes} />
                 </div>
                 <div className="form-group">
                   <label htmlFor="seconds">Seconds</label>
@@ -148,9 +209,18 @@ export default function SectionForm({ examId, section = null }) {
                     max={59}
                     className="form-control"
                     value={durationSeconds}
-                    onChange={(event) => setDurationSeconds(event.target.value)}
+                    onChange={(event) => {
+                      setDurationSeconds(event.target.value);
+                      if (errors.durationSeconds || errors.durationMinutes) {
+                        validateField('durationSeconds', event.target.value, { durationMinutes });
+                      }
+                    }}
+                    onBlur={() => validateField('durationSeconds', durationSeconds)}
                     disabled={loading}
+                    aria-invalid={Boolean(errors.durationSeconds)}
+                    aria-describedby={errors.durationSeconds ? 'seconds-error' : undefined}
                   />
+                  <FieldError id="seconds-error" message={errors.durationSeconds} />
                 </div>
               </div>
             </div>

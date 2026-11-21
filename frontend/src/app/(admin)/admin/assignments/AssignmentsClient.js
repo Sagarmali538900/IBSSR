@@ -4,7 +4,8 @@ import { useAlerts } from '@/app/components/AlertProvider';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { inputSchemas, validateInput } from '@/lib/validation';
+import FieldError from '@/app/components/FieldError';
+import { getValidationErrors, inputSchemas } from '@/lib/validation';
 
 export default function AssignmentsClient({ assignments, exams }) {
   const { notify, confirmAction } = useAlerts();
@@ -17,12 +18,14 @@ export default function AssignmentsClient({ assignments, exams }) {
   const [examId, setExamId] = useState('');
   const [examCode, setExamCode] = useState('');
   const [emailsText, setEmailsText] = useState('');
+  const [createErrors, setCreateErrors] = useState({});
   const [creating, setCreating] = useState(false);
 
   // Single Edit Form State
   const [editingAssignment, setEditingAssignment] = useState(null);
   const [editCode, setEditCode] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [editErrors, setEditErrors] = useState({});
   const [updating, setUpdating] = useState(false);
 
   // Revoke state
@@ -37,11 +40,12 @@ export default function AssignmentsClient({ assignments, exams }) {
 
   const handleBatchAssign = async (e) => {
     e.preventDefault();
-    const validation = validateInput(inputSchemas.assignment, { examId, examCode, emailsText });
+    const validation = inputSchemas.assignment.safeParse({ examId, examCode, emailsText });
     if (!validation.success) {
-      notify(validation.message, 'warning');
+      setCreateErrors(getValidationErrors(validation));
       return;
     }
+    setCreateErrors({});
 
     setCreating(true);
     try {
@@ -57,6 +61,7 @@ export default function AssignmentsClient({ assignments, exams }) {
         setExamId('');
         setExamCode('');
         setEmailsText('');
+        setCreateErrors({});
         router.refresh();
       } else {
         const err = await res.json();
@@ -73,15 +78,17 @@ export default function AssignmentsClient({ assignments, exams }) {
     setEditingAssignment(a);
     setEditCode(a.examCode);
     setEditEmail(a.assignedEmail);
+    setEditErrors({});
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
-    const validation = validateInput(inputSchemas.assignmentEdit, { examCode: editCode, assignedEmail: editEmail });
+    const validation = inputSchemas.assignmentEdit.safeParse({ examCode: editCode, assignedEmail: editEmail });
     if (!validation.success) {
-      notify(validation.message, 'warning');
+      setEditErrors(getValidationErrors(validation));
       return;
     }
+    setEditErrors({});
 
     setUpdating(true);
     try {
@@ -222,7 +229,7 @@ export default function AssignmentsClient({ assignments, exams }) {
                 You must create or possess at least one exam to assign access.
               </p>
             ) : (
-              <form onSubmit={handleBatchAssign}>
+              <form noValidate onSubmit={handleBatchAssign}>
                 
                 <div className="form-group">
                   <label htmlFor="exam">Select Assessment</label>
@@ -230,15 +237,20 @@ export default function AssignmentsClient({ assignments, exams }) {
                     id="exam"
                     className="form-control"
                     value={examId}
-                    onChange={(e) => setExamId(e.target.value)}
+                    onChange={(e) => {
+                      setExamId(e.target.value);
+                      if (createErrors.examId) setCreateErrors((current) => ({ ...current, examId: '' }));
+                    }}
                     disabled={creating}
-                    required
+                    aria-invalid={Boolean(createErrors.examId)}
+                    aria-describedby={createErrors.examId ? 'exam-error' : undefined}
                   >
                     <option value="">-- Choose Exam --</option>
                     {exams.map(e => (
                       <option key={e.id} value={e.id}>{e.title}</option>
                     ))}
                   </select>
+                  <FieldError id="exam-error" message={createErrors.examId} />
                 </div>
 
                 <div className="form-group">
@@ -249,9 +261,15 @@ export default function AssignmentsClient({ assignments, exams }) {
                     className="form-control"
                     placeholder="Leave blank to auto-generate"
                     value={examCode}
-                    onChange={(e) => setExamCode(e.target.value)}
+                    onChange={(e) => {
+                      setExamCode(e.target.value);
+                      if (createErrors.examCode) setCreateErrors((current) => ({ ...current, examCode: '' }));
+                    }}
                     disabled={creating}
+                    aria-invalid={Boolean(createErrors.examCode)}
+                    aria-describedby={createErrors.examCode ? 'code-error' : undefined}
                   />
+                  <FieldError id="code-error" message={createErrors.examCode} />
                   <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
                     Codes are normalized to uppercase.
                   </small>
@@ -265,10 +283,15 @@ export default function AssignmentsClient({ assignments, exams }) {
                     rows={5}
                     placeholder="Enter emails (one per line or separated by commas)"
                     value={emailsText}
-                    onChange={(e) => setEmailsText(e.target.value)}
+                    onChange={(e) => {
+                      setEmailsText(e.target.value);
+                      if (createErrors.emailsText) setCreateErrors((current) => ({ ...current, emailsText: '' }));
+                    }}
                     disabled={creating}
-                    required
+                    aria-invalid={Boolean(createErrors.emailsText)}
+                    aria-describedby={createErrors.emailsText ? 'emails-error' : undefined}
                   />
+                  <FieldError id="emails-error" message={createErrors.emailsText} />
                 </div>
 
                 <button
@@ -295,29 +318,41 @@ export default function AssignmentsClient({ assignments, exams }) {
               Reassign Access
             </h3>
             
-            <form onSubmit={handleUpdate}>
+            <form noValidate onSubmit={handleUpdate}>
               <div className="form-group">
-                <label>Access Code</label>
+                <label htmlFor="edit-assignment-code">Access Code</label>
                 <input
+                  id="edit-assignment-code"
                   type="text"
                   className="form-control"
                   value={editCode}
-                  onChange={(e) => setEditCode(e.target.value)}
+                  onChange={(e) => {
+                    setEditCode(e.target.value);
+                    if (editErrors.examCode) setEditErrors((current) => ({ ...current, examCode: '' }));
+                  }}
                   disabled={updating}
-                  required
+                  aria-invalid={Boolean(editErrors.examCode)}
+                  aria-describedby={editErrors.examCode ? 'edit-code-error' : undefined}
                 />
+                <FieldError id="edit-code-error" message={editErrors.examCode} />
               </div>
 
               <div className="form-group">
-                <label>Candidate Email</label>
+                <label htmlFor="edit-assignment-email">Candidate Email</label>
                 <input
+                  id="edit-assignment-email"
                   type="email"
                   className="form-control"
                   value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEditEmail(e.target.value);
+                    if (editErrors.assignedEmail) setEditErrors((current) => ({ ...current, assignedEmail: '' }));
+                  }}
                   disabled={updating}
-                  required
+                  aria-invalid={Boolean(editErrors.assignedEmail)}
+                  aria-describedby={editErrors.assignedEmail ? 'edit-email-error' : undefined}
                 />
+                <FieldError id="edit-email-error" message={editErrors.assignedEmail} />
               </div>
 
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2rem' }}>

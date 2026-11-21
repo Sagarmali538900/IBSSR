@@ -4,6 +4,7 @@ import { verifyToken } from '@/auth';
 import { Exam, Section, Question, Option, CandidateAnswer, ExamSession, ExamResult } from '@/models';
 import { readValidatedJson } from '@/lib/validation';
 import { ids, schemas } from '@/lib/schemas';
+import { examTitleExists, EXAM_TITLE_TAKEN_MESSAGE, isExamTitleDuplicateError, normalizeExamTitle } from '@/lib/examTitle';
 
 export async function GET(request, { params }) {
   try {
@@ -70,13 +71,22 @@ export async function PUT(request, { params }) {
     if (!validation.success) return validation.response;
     const { title, description } = validation.data;
 
+    const duplicateTitle = await examTitleExists(title, exam._id);
+    if (normalizeExamTitle(title) !== normalizeExamTitle(exam.title) && duplicateTitle) {
+      return NextResponse.json({ code: 'ASSESSMENT_TITLE_TAKEN', field: 'title', message: EXAM_TITLE_TAKEN_MESSAGE }, { status: 409 });
+    }
+
     exam.title = title;
+    if (!duplicateTitle) exam.titleKey = normalizeExamTitle(title);
     exam.description = description || '';
     exam.updatedAt = new Date();
     await exam.save();
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (isExamTitleDuplicateError(error)) {
+      return NextResponse.json({ code: 'ASSESSMENT_TITLE_TAKEN', field: 'title', message: EXAM_TITLE_TAKEN_MESSAGE }, { status: 409 });
+    }
     return NextResponse.json({ message: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }

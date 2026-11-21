@@ -4,7 +4,8 @@ import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import '@/app/globals.css';
 import Icon from '@/app/components/Icon';
-import { inputSchemas, validateInput } from '@/lib/validation';
+import FieldError from '@/app/components/FieldError';
+import { getValidationErrors, inputSchemas } from '@/lib/validation';
 
 // Inner component that uses useSearchParams — must be wrapped in Suspense
 function LoginForm() {
@@ -15,19 +16,24 @@ function LoginForm() {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [serverError, setServerError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const validation = validateInput(inputSchemas.login, { username, password });
+    const validation = inputSchemas.login.safeParse({ username, password });
     if (!validation.success) {
-      setErrorMsg(validation.message);
+      const nextErrors = getValidationErrors(validation);
+      setFieldErrors(nextErrors);
+      const firstInvalidField = nextErrors.username ? 'username' : nextErrors.password ? 'password' : null;
+      if (firstInvalidField) document.getElementById(firstInvalidField)?.focus();
       return;
     }
+    setFieldErrors({});
 
     setLoading(true);
-    setErrorMsg('');
+    setServerError('');
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -42,10 +48,10 @@ function LoginForm() {
         router.push(nextUrl);
         router.refresh();
       } else {
-        setErrorMsg(data?.message || `The backend returned an unexpected response (HTTP ${res.status}). Confirm the backend is running on port 4001.`);
+        setServerError(data?.message || `The backend returned an unexpected response (HTTP ${res.status}). Confirm the backend is running on port 4001.`);
       }
     } catch (error) {
-      setErrorMsg(`Connection error: ${error.message}`);
+      setServerError(`Connection error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -80,9 +86,9 @@ function LoginForm() {
           </div>
         )}
 
-        {errorMsg && (
+        {serverError && (
           <div className="alert alert-error" style={{ fontSize: '0.9rem', marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <span>{errorMsg}</span>
+            <span>{serverError}</span>
           </div>
         )}
 
@@ -95,9 +101,19 @@ function LoginForm() {
               className="form-control"
               placeholder="Enter username"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                if (fieldErrors.username) setFieldErrors((current) => ({ ...current, username: '' }));
+              }}
+              onBlur={() => {
+                const result = inputSchemas.login.shape.username.safeParse(username);
+                setFieldErrors((current) => ({ ...current, username: result.success ? '' : result.error.issues[0]?.message }));
+              }}
               disabled={loading}
+              aria-invalid={Boolean(fieldErrors.username)}
+              aria-describedby={fieldErrors.username ? 'username-error' : undefined}
             />
+            <FieldError id="username-error" message={fieldErrors.username} />
           </div>
 
           <div className="form-group" style={{ marginBottom: '2rem' }}>
@@ -108,9 +124,19 @@ function LoginForm() {
               className="form-control"
               placeholder="Enter password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (fieldErrors.password) setFieldErrors((current) => ({ ...current, password: '' }));
+              }}
+              onBlur={() => {
+                const result = inputSchemas.login.shape.password.safeParse(password);
+                setFieldErrors((current) => ({ ...current, password: result.success ? '' : result.error.issues[0]?.message }));
+              }}
               disabled={loading}
+              aria-invalid={Boolean(fieldErrors.password)}
+              aria-describedby={fieldErrors.password ? 'password-error' : undefined}
             />
+            <FieldError id="password-error" message={fieldErrors.password} />
             <div style={{ textAlign: 'right', marginTop: '0.55rem' }}>
               <a href="/forgot-password" style={{ color: 'var(--primary)', fontSize: '0.85rem', fontWeight: 600 }}>Forgot password?</a>
             </div>

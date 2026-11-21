@@ -14,7 +14,7 @@
     --accent-rose: #b45f5f;
     --accent-amber: #9b7948;
     --font-heading: var(--font-body);
-    --font-body: var(--font-inter), 'Segoe UI', sans-serif;
+    --font-body: var(--font-inter, 'Segoe UI'), 'Segoe UI', Arial, sans-serif;
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --border-radius: 16px;
     
@@ -309,6 +309,21 @@ h1, h2, h3, h4, h5, h6 {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-glow);
     background: rgba(255, 255, 255, 0.85);
+}
+
+.form-control[aria-invalid="true"] {
+    border-color: #b4464f;
+}
+
+.field-error {
+    margin: 0.4rem 0 0;
+    color: #a83d46;
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+html.dark .field-error {
+    color: #ff9ba2;
 }
 
 /* Buttons */
@@ -2124,5 +2139,20 @@ html.dark .section-duration-total small, html.dark .section-duration-presets but
   .question-timing-note { align-items: flex-start; flex-direction: column; }
   .question-editor-actions > * { flex: 1; }
   .builder-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Keep validation text red even inside glass cards, whose copy styles use !important. */
+p.field-error,
+.glass-card p.field-error,
+.question-form-field p.field-error,
+.franchise-form p.field-error {
+  color: #a83d46 !important;
+}
+
+html.dark p.field-error,
+html.dark .glass-card p.field-error,
+html.dark .question-form-field p.field-error,
+html.dark .franchise-form p.field-error {
+  color: #ff9ba2 !important;
 }
 

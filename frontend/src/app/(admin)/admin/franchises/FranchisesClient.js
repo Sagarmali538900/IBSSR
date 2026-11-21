@@ -4,7 +4,8 @@ import { useAlerts } from '@/app/components/AlertProvider';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { inputSchemas, validateInput } from '@/lib/validation';
+import FieldError from '@/app/components/FieldError';
+import { getValidationErrors, inputSchemas } from '@/lib/validation';
 
 export default function FranchisesClient({ franchises }) {
   const { notify, confirmAction } = useAlerts();
@@ -14,6 +15,7 @@ export default function FranchisesClient({ franchises }) {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [createErrors, setCreateErrors] = useState({});
   const [creating, setCreating] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -51,11 +53,12 @@ export default function FranchisesClient({ franchises }) {
 
   const handleCreateFranchise = async (e) => {
     e.preventDefault();
-    const validation = validateInput(inputSchemas.franchise, { username, email, password });
+    const validation = inputSchemas.franchise.safeParse({ username, email, password });
     if (!validation.success) {
-      notify(validation.message, 'warning');
+      setCreateErrors(getValidationErrors(validation));
       return;
     }
+    setCreateErrors({});
 
     setCreating(true);
     try {
@@ -70,6 +73,7 @@ export default function FranchisesClient({ franchises }) {
         setUsername('');
         setEmail('');
         setPassword('');
+        setCreateErrors({});
         setIsCreateOpen(false);
         router.refresh();
       } else {
@@ -215,15 +219,18 @@ export default function FranchisesClient({ franchises }) {
               <button type="button" className="franchise-modal-close" onClick={() => setIsCreateOpen(false)} disabled={creating} aria-label="Close registration dialog">Close</button>
             </div>
 
-            <form className="franchise-form" onSubmit={handleCreateFranchise}>
+            <form className="franchise-form" noValidate onSubmit={handleCreateFranchise}>
               <label htmlFor="new-franchise-username">Franchise username</label>
-              <input id="new-franchise-username" type="text" autoComplete="username" placeholder="e.g. franchise_south" value={username} onChange={(event) => setUsername(event.target.value)} disabled={creating} required maxLength={80} autoFocus />
+              <input id="new-franchise-username" type="text" autoComplete="username" placeholder="e.g. franchise_south" value={username} onChange={(event) => { setUsername(event.target.value); if (createErrors.username) setCreateErrors((current) => ({ ...current, username: '' })); }} disabled={creating} aria-invalid={Boolean(createErrors.username)} aria-describedby={createErrors.username ? 'new-franchise-username-error' : undefined} autoFocus />
+              <FieldError id="new-franchise-username-error" message={createErrors.username} />
 
               <label htmlFor="new-franchise-email">Email address</label>
-              <input id="new-franchise-email" type="email" autoComplete="email" placeholder="branch@example.com" value={email} onChange={(event) => setEmail(event.target.value)} disabled={creating} required maxLength={254} />
+              <input id="new-franchise-email" type="email" autoComplete="email" placeholder="branch@example.com" value={email} onChange={(event) => { setEmail(event.target.value); if (createErrors.email) setCreateErrors((current) => ({ ...current, email: '' })); }} disabled={creating} aria-invalid={Boolean(createErrors.email)} aria-describedby={createErrors.email ? 'new-franchise-email-error' : undefined} />
+              <FieldError id="new-franchise-email-error" message={createErrors.email} />
 
               <label htmlFor="new-franchise-password">Temporary password</label>
-              <input id="new-franchise-password" type="password" autoComplete="new-password" placeholder="At least 12 characters" value={password} onChange={(event) => setPassword(event.target.value)} disabled={creating} required minLength={12} maxLength={128} />
+              <input id="new-franchise-password" type="password" autoComplete="new-password" placeholder="At least 12 characters" value={password} onChange={(event) => { setPassword(event.target.value); if (createErrors.password) setCreateErrors((current) => ({ ...current, password: '' })); }} disabled={creating} aria-invalid={Boolean(createErrors.password)} aria-describedby={createErrors.password ? 'new-franchise-password-error' : undefined} />
+              <FieldError id="new-franchise-password-error" message={createErrors.password} />
               <p className="franchise-form-help">Partner login details will be sent to this email address.</p>
 
               <div className="franchise-modal-actions">

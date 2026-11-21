@@ -5,7 +5,8 @@ import { useAlerts } from '@/app/components/AlertProvider';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import '@/app/globals.css';
-import { inputSchemas, validateInput } from '@/lib/validation';
+import FieldError from '@/app/components/FieldError';
+import { getValidationErrors, inputSchemas } from '@/lib/validation';
 
 export default function CandidateEntryPage() {
   const { notify } = useAlerts();
@@ -21,19 +22,21 @@ export default function CandidateEntryPage() {
   const [dob, setDob] = useState('');
   const [education, setEducation] = useState('');
 
-  const [errorMsg, setErrorMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [serverError, setServerError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleValidateCode = async (e) => {
     e.preventDefault();
-    const validation = validateInput(inputSchemas.accessCode, { examCode });
+    const validation = inputSchemas.accessCode.safeParse({ examCode });
     if (!validation.success) {
-      setErrorMsg(validation.message);
+      setFieldErrors(getValidationErrors(validation));
       return;
     }
 
     setLoading(true);
-    setErrorMsg('');
+    setFieldErrors({});
+    setServerError('');
     try {
       const res = await fetch('/api/candidate/entry', {
         method: 'POST',
@@ -47,10 +50,10 @@ export default function CandidateEntryPage() {
         setStep(2);
       } else {
         const err = await res.json();
-        setErrorMsg(err.message);
+        setServerError(err.message);
       }
     } catch (error) {
-      setErrorMsg(`Connection error: ${error.message}`);
+      setServerError(`Connection error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -58,14 +61,18 @@ export default function CandidateEntryPage() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    const validation = validateInput(inputSchemas.candidateRegistration, { examCode, fullName, email, mobileNumber, dob, education });
+    const validation = inputSchemas.candidateRegistration.safeParse({ examCode, fullName, email, mobileNumber, dob, education });
     if (!validation.success) {
-      setErrorMsg(validation.message);
+      const nextErrors = getValidationErrors(validation);
+      setFieldErrors(nextErrors);
+      const firstInvalidField = ['fullName', 'email', 'mobileNumber', 'dob', 'education'].find((field) => nextErrors[field]);
+      if (firstInvalidField) document.getElementById(firstInvalidField)?.focus();
       return;
     }
 
     setLoading(true);
-    setErrorMsg('');
+    setFieldErrors({});
+    setServerError('');
     try {
       const res = await fetch('/api/candidate/entry', {
         method: 'POST',
@@ -81,10 +88,10 @@ export default function CandidateEntryPage() {
         router.push(`/candidate/instructions/${data.sessionId}`);
       } else {
         const err = await res.json();
-        setErrorMsg(err.message);
+        setServerError(err.message);
       }
     } catch (error) {
-      setErrorMsg(`Registration failed: ${error.message}`);
+      setServerError(`Registration failed: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -114,15 +121,15 @@ export default function CandidateEntryPage() {
           <div className={step === 2 ? 'current' : ''}><span>02</span><small>Your details</small></div>
         </div>
 
-        {errorMsg && (
+        {serverError && (
           <div className="alert alert-error" style={{ fontSize: '0.9rem', marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <i className="fa-solid fa-triangle-exclamation"></i>
-            <span>{errorMsg}</span>
+            <span>{serverError}</span>
           </div>
         )}
 
         {step === 1 ? (
-          <form onSubmit={handleValidateCode}>
+          <form noValidate onSubmit={handleValidateCode}>
             <div className="form-group" style={{ marginBottom: '2rem' }}>
               <label htmlFor="exam-code">Exam Access Code</label>
               <input
@@ -131,11 +138,16 @@ export default function CandidateEntryPage() {
                 className="form-control"
                 placeholder="Enter access code (e.g. EXAM-XXXXXX)"
                 value={examCode}
-                onChange={(e) => setExamCode(e.target.value)}
+                onChange={(e) => {
+                  setExamCode(e.target.value);
+                  if (fieldErrors.examCode) setFieldErrors((current) => ({ ...current, examCode: '' }));
+                }}
                 disabled={loading}
-                required
+                aria-invalid={Boolean(fieldErrors.examCode)}
+                aria-describedby={fieldErrors.examCode ? 'exam-code-error' : undefined}
                 style={{ textAlign: 'center', letterSpacing: '0.1em', fontSize: '1.1rem', fontWeight: 'bold' }}
               />
+              <FieldError id="exam-code-error" message={fieldErrors.examCode} />
               <small style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem', display: 'block', textAlign: 'center' }}>
                 Please enter the 13-character code provided by your administrator.
               </small>
@@ -146,7 +158,7 @@ export default function CandidateEntryPage() {
             </button>
           </form>
         ) : (
-          <form onSubmit={handleRegister}>
+          <form noValidate onSubmit={handleRegister}>
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1.5rem', textAlign: 'center' }}>
               <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--accent-cyan)', fontWeight: 'bold' }}>
                 Verified Assessment
@@ -162,10 +174,15 @@ export default function CandidateEntryPage() {
                 className="form-control"
                 placeholder="Enter your full name"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (fieldErrors.fullName) setFieldErrors((current) => ({ ...current, fullName: '' }));
+                }}
                 disabled={loading}
-                required
+                aria-invalid={Boolean(fieldErrors.fullName)}
+                aria-describedby={fieldErrors.fullName ? 'full-name-error' : undefined}
               />
+              <FieldError id="full-name-error" message={fieldErrors.fullName} />
             </div>
 
             <div className="form-group">
@@ -176,10 +193,15 @@ export default function CandidateEntryPage() {
                 className="form-control"
                 placeholder="Enter authorized email address"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (fieldErrors.email) setFieldErrors((current) => ({ ...current, email: '' }));
+                }}
                 disabled={loading}
-                required
+                aria-invalid={Boolean(fieldErrors.email)}
+                aria-describedby={fieldErrors.email ? 'candidate-email-error' : undefined}
               />
+              <FieldError id="candidate-email-error" message={fieldErrors.email} />
               <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
                 Must match the email authorized by your administrator.
               </small>
@@ -193,10 +215,15 @@ export default function CandidateEntryPage() {
                 className="form-control"
                 placeholder="Enter your contact number"
                 value={mobileNumber}
-                onChange={(e) => setMobileNumber(e.target.value)}
+                onChange={(e) => {
+                  setMobileNumber(e.target.value);
+                  if (fieldErrors.mobileNumber) setFieldErrors((current) => ({ ...current, mobileNumber: '' }));
+                }}
                 disabled={loading}
-                required
+                aria-invalid={Boolean(fieldErrors.mobileNumber)}
+                aria-describedby={fieldErrors.mobileNumber ? 'mobile-error' : undefined}
               />
+              <FieldError id="mobile-error" message={fieldErrors.mobileNumber} />
             </div>
 
             <div className="form-group" style={{ marginBottom: '1.5rem' }}>
@@ -206,10 +233,15 @@ export default function CandidateEntryPage() {
                 id="dob"
                 className="form-control"
                 value={dob}
-                onChange={(e) => setDob(e.target.value)}
+                onChange={(e) => {
+                  setDob(e.target.value);
+                  if (fieldErrors.dob) setFieldErrors((current) => ({ ...current, dob: '' }));
+                }}
                 disabled={loading}
-                required
+                aria-invalid={Boolean(fieldErrors.dob)}
+                aria-describedby={fieldErrors.dob ? 'dob-error' : undefined}
               />
+              <FieldError id="dob-error" message={fieldErrors.dob} />
             </div>
 
             <div className="form-group" style={{ marginBottom: '2rem' }}>
@@ -220,10 +252,15 @@ export default function CandidateEntryPage() {
                 className="form-control"
                 placeholder="e.g. 10th Standard, B.Sc, B.Tech, etc."
                 value={education}
-                onChange={(e) => setEducation(e.target.value)}
+                onChange={(e) => {
+                  setEducation(e.target.value);
+                  if (fieldErrors.education) setFieldErrors((current) => ({ ...current, education: '' }));
+                }}
                 disabled={loading}
-                required
+                aria-invalid={Boolean(fieldErrors.education)}
+                aria-describedby={fieldErrors.education ? 'education-error' : undefined}
               />
+              <FieldError id="education-error" message={fieldErrors.education} />
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -236,7 +273,8 @@ export default function CandidateEntryPage() {
                 style={{ flex: 1 }}
                 onClick={() => {
                   setStep(1);
-                  setErrorMsg('');
+                  setFieldErrors({});
+                  setServerError('');
                 }}
                 disabled={loading}
               >

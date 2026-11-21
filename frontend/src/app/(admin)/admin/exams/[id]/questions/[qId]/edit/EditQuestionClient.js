@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { compressImage } from '@frontend/lib/compressImage';
 import { getBlobImageSrc } from '@frontend/lib/getBlobImageSrc';
-import { inputSchemas, validateImageFiles, validateInput } from '@/lib/validation';
+import FieldError from '@/app/components/FieldError';
+import { getValidationErrors, inputSchemas, validateImageFiles } from '@/lib/validation';
 
 const SELECTION_MODES = [
   { value: 'single', title: 'Choose one', description: 'Candidates select one response.' },
@@ -53,6 +54,7 @@ export default function EditQuestionClient({ examId, question, initialOptions })
   
   const [imageFile, setImageFile] = useState(null);
   const [clearImage, setClearImage] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [optionsByType, setOptionsByType] = useState(() => Object.fromEntries(
     ['single_select', 'multi_select', 'rating_scale', 'image_choice', 'multi_image_choice'].map((value) => [value, value === question.questionType
@@ -82,40 +84,59 @@ export default function EditQuestionClient({ examId, question, initialOptions })
 
   const handleAnswerStyleChange = (nextStyle) => {
     setAnswerStyle(nextStyle);
+    setFieldErrors({});
     if (nextStyle === 'rating_scale') setSelectionMode('single');
+  };
+
+  const handleSelectionModeChange = (nextMode) => {
+    setSelectionMode(nextMode);
+    setFieldErrors({});
   };
 
   const handleOptionChange = (index, field, value) => {
     updateCurrentOptions((current) => current.map((option, optionIndex) => optionIndex === index ? { ...option, [field]: value } : option));
+    setFieldErrors({});
   };
 
-  const addOptionField = () => updateCurrentOptions((current) => [...current, createEmptyOption()]);
+  const addOptionField = () => {
+    setFieldErrors({});
+    updateCurrentOptions((current) => [...current, createEmptyOption()]);
+  };
 
   const removeOptionField = (index) => {
     if (options.length <= 1) {
       notify('A question must have at least one option.');
       return;
     }
+    setFieldErrors({});
     updateCurrentOptions((current) => current.filter((_, optionIndex) => optionIndex !== index));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const filledOptions = options.filter(opt => opt.text.trim());
-    const validation = validateInput(inputSchemas.question, { text, questionType, estimatedTimeSeconds, order, options: filledOptions });
+    const validation = inputSchemas.question.safeParse({ text, questionType, estimatedTimeSeconds, order, options: filledOptions });
     if (!validation.success) {
-      notify(validation.message, 'warning');
+      setFieldErrors(getValidationErrors(validation));
       return;
     }
-    if ((questionType === 'image_choice' || questionType === 'multi_image_choice') && filledOptions.some((option) => !option.newImageFile && (!option.image || option.clearImage))) {
-      notify('Add an image for every image choice.', 'warning');
+    const nextImageErrors = {};
+    if (questionType === 'image_choice' || questionType === 'multi_image_choice') {
+      filledOptions.forEach((option, index) => {
+        if (!option.newImageFile && (!option.image || option.clearImage)) nextImageErrors[`options.${index}.image`] = 'Add an image for this choice.';
+      });
+    }
+    const questionImageError = validateImageFiles([imageFile]);
+    if (questionImageError) nextImageErrors.questionImage = questionImageError;
+    filledOptions.forEach((option, index) => {
+      const imageError = validateImageFiles([option.newImageFile]);
+      if (imageError) nextImageErrors[`options.${index}.image`] = imageError;
+    });
+    if (Object.keys(nextImageErrors).length) {
+      setFieldErrors(nextImageErrors);
       return;
     }
-    const imageError = validateImageFiles([imageFile, ...filledOptions.map((option) => option.newImageFile)]);
-    if (imageError) {
-      notify(imageError, 'warning');
-      return;
-    }
+    setFieldErrors({});
 
     setLoading(true);
 
@@ -182,11 +203,11 @@ export default function EditQuestionClient({ examId, question, initialOptions })
       <nav className="question-editor-breadcrumb" aria-label="Breadcrumb"><Link href={`/admin/exams/${examId}`}>Assessment builder</Link><span aria-hidden="true">/</span><span>Edit question</span></nav>
       <header className="question-editor-heading"><div><span className="question-editor-kicker">QUESTION DESIGN</span><h1>Edit question</h1><p>Adjust how candidates respond, the answer style, prompt, media, or score weights.</p></div><div className="question-editor-summary"><span>Section timing</span><strong>Configured at section level</strong></div></header>
 
-      <form className="question-editor-form" onSubmit={handleSubmit} encType="multipart/form-data">
+      <form className="question-editor-form" noValidate onSubmit={handleSubmit} encType="multipart/form-data">
         <section className="question-editor-panel" aria-labelledby="question-type-title">
           <div className="question-panel-heading"><div><span className="question-editor-kicker">STEP 1</span><h2 id="question-type-title">Choose how candidates respond</h2><p>Set the number of responses, then choose how the options are shown.</p></div></div>
           <div className="question-selection-grid" aria-label="Number of responses">
-            {SELECTION_MODES.map((mode) => <button key={mode.value} type="button" className={`question-type-card${selectionMode === mode.value ? ' is-selected' : ''}`} onClick={() => setSelectionMode(mode.value)} aria-pressed={selectionMode === mode.value} disabled={loading || (answerStyle === 'rating_scale' && mode.value === 'multiple')}><span className="question-type-radio" aria-hidden="true" /><strong>{mode.title}</strong><span>{mode.description}</span></button>)}
+            {SELECTION_MODES.map((mode) => <button key={mode.value} type="button" className={`question-type-card${selectionMode === mode.value ? ' is-selected' : ''}`} onClick={() => handleSelectionModeChange(mode.value)} aria-pressed={selectionMode === mode.value} disabled={loading || (answerStyle === 'rating_scale' && mode.value === 'multiple')}><span className="question-type-radio" aria-hidden="true" /><strong>{mode.title}</strong><span>{mode.description}</span></button>)}
           </div>
           <div className="question-answer-style">
             <div className="question-answer-style-heading"><strong>Answer style</strong><span>Rating scales use one response; text and image choices can use either selection mode.</span></div>
@@ -199,28 +220,29 @@ export default function EditQuestionClient({ examId, question, initialOptions })
         <section className="question-editor-panel" aria-labelledby="prompt-title">
           <div className="question-panel-heading"><div><span className="question-editor-kicker">STEP 2</span><h2 id="prompt-title">Question prompt</h2><p>Use clear wording that is comfortable for the intended age group.</p></div></div>
           <div className="question-form-grid">
-            <div className="question-form-field question-prompt-field"><label htmlFor="question-prompt">Question text</label><textarea id="question-prompt" rows={4} maxLength={5000} value={text} onChange={(event) => setText(event.target.value)} disabled={loading} required /><small>{text.length} / 5,000 characters</small></div>
-            <div className="question-form-field"><label htmlFor="question-order">Question order</label><input id="question-order" type="number" min={0} max={10000} value={order} onChange={(event) => setOrder(Number(event.target.value))} disabled={loading} required /><small>Position within this section.</small></div>
-            <div className="question-form-field"><label htmlFor="question-time">Suggested time</label><div className="question-time-input"><input id="question-time" type="number" min={0} max={3600} value={estimatedTimeSeconds} onChange={(event) => setEstimatedTimeSeconds(event.target.value)} disabled={loading} required /><span>seconds</span></div><small>Planning guide only; the section timer is enforced.</small></div>
+            <div className="question-form-field question-prompt-field"><label htmlFor="question-prompt">Question text</label><textarea id="question-prompt" rows={4} maxLength={5000} value={text} onChange={(event) => { setText(event.target.value); if (fieldErrors.text) setFieldErrors((current) => ({ ...current, text: '' })); }} disabled={loading} aria-invalid={Boolean(fieldErrors.text)} aria-describedby={fieldErrors.text ? 'question-text-error' : undefined} /><small>{text.length} / 5,000 characters</small><FieldError id="question-text-error" message={fieldErrors.text} /></div>
+            <div className="question-form-field"><label htmlFor="question-order">Question order</label><input id="question-order" type="number" min={0} max={10000} value={order} onChange={(event) => { setOrder(event.target.value); if (fieldErrors.order) setFieldErrors((current) => ({ ...current, order: '' })); }} disabled={loading} aria-invalid={Boolean(fieldErrors.order)} aria-describedby={fieldErrors.order ? 'question-order-error' : undefined} /><small>Position within this section.</small><FieldError id="question-order-error" message={fieldErrors.order} /></div>
+            <div className="question-form-field"><label htmlFor="question-time">Suggested time</label><div className="question-time-input"><input id="question-time" type="number" min={0} max={3600} value={estimatedTimeSeconds} onChange={(event) => { setEstimatedTimeSeconds(event.target.value); if (fieldErrors.estimatedTimeSeconds) setFieldErrors((current) => ({ ...current, estimatedTimeSeconds: '' })); }} disabled={loading} aria-invalid={Boolean(fieldErrors.estimatedTimeSeconds)} aria-describedby={fieldErrors.estimatedTimeSeconds ? 'question-time-error' : undefined} /><span>seconds</span></div><small>Planning guide only; the section timer is enforced.</small><FieldError id="question-time-error" message={fieldErrors.estimatedTimeSeconds} /></div>
           </div>
           <div className="question-form-field question-image-field"><label htmlFor="question-image">Question image <span>Optional</span></label>
             {question.image && !clearImage && <div className="question-current-image"><img src={getBlobImageSrc(question.image)} alt="Current question visual" /><label><input type="checkbox" checked={clearImage} onChange={(event) => setClearImage(event.target.checked)} /> Remove current image</label></div>}
-            <input type="file" id="question-image" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { setImageFile(event.target.files?.[0] || null); setClearImage(false); }} disabled={loading} /><small>{imageFile?.name || 'Replace or add a diagram, photo, or illustration (up to 5 MB).'}</small>
+            <input type="file" id="question-image" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { setImageFile(event.target.files?.[0] || null); setClearImage(false); setFieldErrors((current) => ({ ...current, questionImage: '' })); }} disabled={loading} aria-invalid={Boolean(fieldErrors.questionImage)} aria-describedby={fieldErrors.questionImage ? 'question-image-error' : undefined} /><small>{imageFile?.name || 'Replace or add a diagram, photo, or illustration (up to 5 MB).'}</small><FieldError id="question-image-error" message={fieldErrors.questionImage} />
           </div>
         </section>
 
         <section className="question-editor-panel" aria-labelledby="answers-title">
-          <div className="question-panel-heading question-answers-heading"><div><span className="question-editor-kicker">STEP 3</span><h2 id="answers-title">{answerFormat.heading}</h2><p>{answerFormat.guidance}</p></div><button type="button" className="question-add-option" onClick={addOptionField} disabled={loading}>{answerFormat.addLabel}</button></div>
+          <div className="question-panel-heading question-answers-heading"><div><span className="question-editor-kicker">STEP 3</span><h2 id="answers-title" tabIndex={-1}>{answerFormat.heading}</h2><p>{answerFormat.guidance}</p></div><button type="button" className="question-add-option" onClick={addOptionField} disabled={loading}>{answerFormat.addLabel}</button></div>
+          <FieldError id="answer-options-error" message={fieldErrors.options} />
           <div className="question-options-list">
             {options.map((option, index) => (
               <article className="question-option-editor" key={option.id || index}>
                 <span className="question-option-number">{String(index + 1).padStart(2, '0')}</span>
                 <div className="question-option-fields">
-                  <div className="question-form-field"><label htmlFor={`option-text-${index}`}>{answerFormat.choiceLabel}</label><input id={`option-text-${index}`} type="text" maxLength={1000} placeholder={answerStyle === 'image_choice' ? `Image choice ${index + 1}` : answerStyle === 'rating_scale' ? `Scale point ${index + 1}` : `Choice ${index + 1}`} value={option.text} onChange={(event) => handleOptionChange(index, 'text', event.target.value)} disabled={loading} required /></div>
-                  <div className="question-form-field question-option-score"><label htmlFor={`option-score-${index}`}>Score weight</label><input id={`option-score-${index}`} type="number" step="0.1" min={-100000} max={100000} value={option.score} onChange={(event) => handleOptionChange(index, 'score', event.target.value)} disabled={loading} /><small>Points for this response</small></div>
+                  <div className="question-form-field"><label htmlFor={`option-text-${index}`}>{answerFormat.choiceLabel}</label><input id={`option-text-${index}`} type="text" maxLength={1000} placeholder={answerStyle === 'image_choice' ? `Image choice ${index + 1}` : answerStyle === 'rating_scale' ? `Scale point ${index + 1}` : `Choice ${index + 1}`} value={option.text} onChange={(event) => handleOptionChange(index, 'text', event.target.value)} disabled={loading} aria-invalid={Boolean(fieldErrors[`options.${filledOptions.indexOf(option)}.text`])} aria-describedby={fieldErrors[`options.${filledOptions.indexOf(option)}.text`] ? `option-text-error-${index}` : undefined} /><FieldError id={`option-text-error-${index}`} message={fieldErrors[`options.${filledOptions.indexOf(option)}.text`]} /></div>
+                  <div className="question-form-field question-option-score"><label htmlFor={`option-score-${index}`}>Score weight</label><input id={`option-score-${index}`} type="number" step="0.1" min={-100000} max={100000} value={option.score} onChange={(event) => handleOptionChange(index, 'score', event.target.value)} disabled={loading} aria-invalid={Boolean(fieldErrors[`options.${filledOptions.indexOf(option)}.score`])} aria-describedby={fieldErrors[`options.${filledOptions.indexOf(option)}.score`] ? `option-score-error-${index}` : undefined} /><small>Points for this response</small><FieldError id={`option-score-error-${index}`} message={fieldErrors[`options.${filledOptions.indexOf(option)}.score`]} /></div>
                   <div className="question-form-field question-option-image"><label htmlFor={`option-image-${index}`}>{answerFormat.imageLabel} {answerStyle !== 'image_choice' && <span>Optional</span>}</label>
                     {option.image && !option.clearImage && <div className="question-current-image is-option"><img src={getBlobImageSrc(option.image)} alt={`Current image for choice ${index + 1}`} /><label><input type="checkbox" checked={option.clearImage} onChange={(event) => handleOptionChange(index, 'clearImage', event.target.checked)} /> Remove</label></div>}
-                    <input id={`option-image-${index}`} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { handleOptionChange(index, 'newImageFile', event.target.files?.[0] || null); handleOptionChange(index, 'clearImage', false); }} disabled={loading} /><small>{option.newImageFile?.name || answerFormat.imageHint}</small>
+                    <input id={`option-image-${index}`} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { handleOptionChange(index, 'newImageFile', event.target.files?.[0] || null); handleOptionChange(index, 'clearImage', false); }} disabled={loading} aria-invalid={Boolean(fieldErrors[`options.${filledOptions.indexOf(option)}.image`])} aria-describedby={fieldErrors[`options.${filledOptions.indexOf(option)}.image`] ? `option-image-error-${index}` : undefined} /><small>{option.newImageFile?.name || answerFormat.imageHint}</small><FieldError id={`option-image-error-${index}`} message={fieldErrors[`options.${filledOptions.indexOf(option)}.image`]} />
                   </div>
                 </div>
                 <button type="button" className="question-remove-option" onClick={() => removeOptionField(index)} disabled={loading || options.length === 1} aria-label={`Remove choice ${index + 1}`}>Remove</button>

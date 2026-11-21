@@ -77,7 +77,7 @@ export const inputSchemas = {
       context.addIssue({ code: 'custom', message: 'Choose an assessment file.' });
       return;
     }
-    if (!/\.(json|xlsx?)$/i.test(file.name)) context.addIssue({ code: 'custom', message: 'Choose a .json, .xlsx, or .xls file.' });
+    if (!/\.(json|xlsx)$/i.test(file.name)) context.addIssue({ code: 'custom', message: 'Choose a .json or .xlsx file. Legacy .xls files are not supported.' });
     if (file.size < 1 || file.size > 10 * 1024 * 1024) context.addIssue({ code: 'custom', message: 'The file must be non-empty and 10 MB or smaller.' });
   }),
 };
@@ -87,6 +87,17 @@ export function validateInput(schema, value) {
   return result.success
     ? { success: true, data: result.data }
     : { success: false, message: result.error.issues[0]?.message || 'Please check the submitted information.' };
+}
+
+export function getValidationErrors(result) {
+  if (result.success) return {};
+
+  return result.error.issues.reduce((errors, issue) => {
+    const path = issue.path.map((part) => String(part)).join('.');
+    const key = path || '_form';
+    if (!errors[key]) errors[key] = issue.message;
+    return errors;
+  }, {});
 }
 
 export function validateImageFiles(files) {

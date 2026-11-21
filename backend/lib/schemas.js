@@ -100,9 +100,13 @@ export const schemas = {
         estimated_time_seconds: z.coerce.number().int().min(0).max(3600).optional(),
         order: z.coerce.number().int().min(0).max(10000).optional(),
         image: imageReference.optional(),
-        options: z.array(z.object({ text: shortText('Option text', 1000), image: imageReference.optional(), score: z.coerce.number().finite().min(-100000).max(100000).optional() })).max(100).optional(),
-      })).max(1000).optional(),
-    })).max(500).optional().default([]),
+        options: z.array(z.object({ text: shortText('Option text', 1000), image: imageReference.optional(), score: z.coerce.number().finite().min(-100000).max(100000).optional() })).min(1, 'Each question must have at least one answer choice.').max(100),
+      })).min(1, 'Each section must contain at least one question.').max(1000),
+    }).superRefine((section, context) => {
+      if (section.duration_minutes === 0 && (section.duration_seconds ?? 0) === 0) {
+        context.addIssue({ code: 'custom', path: ['duration_minutes'], message: 'Section duration must be greater than zero.' });
+      }
+    })).min(1, 'An assessment must contain at least one section.').max(500),
   }),
   normalizedExamImport: z.object({
     title: shortText('Title', 160),
@@ -112,9 +116,18 @@ export const schemas = {
       durationMinutes: z.coerce.number().int().min(0).max(1440), durationSeconds: z.coerce.number().int().min(0).max(59), order: z.coerce.number().int().min(0).max(10000),
       questions: z.record(z.string(), z.object({
         text: shortText('Question text', 5000), questionType: z.enum(['single_select', 'multi_select', 'rating_scale', 'image_choice', 'multi_image_choice']), estimatedTimeSeconds: z.coerce.number().int().min(0).max(3600).optional().default(0), order: z.coerce.number().int().min(0).max(10000), image: imageReference,
-        options: z.array(z.object({ text: shortText('Option text', 1000), image: imageReference, score: z.coerce.number().finite().min(-100000).max(100000) })).max(100),
-      })).default({}),
+        options: z.array(z.object({ text: shortText('Option text', 1000), image: imageReference, score: z.coerce.number().finite().min(-100000).max(100000) })).min(1, 'Each question must have at least one answer choice.').max(100),
+      })).superRefine((questions, context) => {
+        const count = Object.keys(questions).length;
+        if (count < 1) context.addIssue({ code: 'custom', message: 'Each section must contain at least one question.' });
+        if (count > 1000) context.addIssue({ code: 'custom', message: 'Each section can contain at most 1,000 questions.' });
+      }),
+    }).superRefine((section, context) => {
+      if (section.durationMinutes === 0 && section.durationSeconds === 0) {
+        context.addIssue({ code: 'custom', path: ['durationMinutes'], message: 'Section duration must be greater than zero.' });
+      }
     })).superRefine((sections, context) => {
+      if (Object.keys(sections).length < 1) context.addIssue({ code: 'custom', message: 'An assessment must contain at least one section.' });
       if (Object.keys(sections).length > 500) context.addIssue({ code: 'custom', message: 'An assessment can include at most 500 sections.' });
     }),
   }),

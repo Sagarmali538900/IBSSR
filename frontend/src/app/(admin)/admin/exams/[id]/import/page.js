@@ -6,6 +6,8 @@ import { useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { inputSchemas, validateInput } from '@/lib/validation';
+import ExamImportTemplateLinks from '@/app/components/ExamImportTemplateLinks';
+import FieldError from '@/app/components/FieldError';
 
 export default function OverwriteImportPage({ params }) {
   const { notify, confirmAction } = useAlerts();
@@ -13,6 +15,7 @@ export default function OverwriteImportPage({ params }) {
   const { id: examId } = use(params);
 
   const [file, setFile] = useState(null);
+  const [fileError, setFileError] = useState('');
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
@@ -35,9 +38,10 @@ export default function OverwriteImportPage({ params }) {
       const validation = validateInput(inputSchemas.importFile, droppedFile);
       if (validation.success) {
         setFile(droppedFile);
+        setFileError('');
       } else {
         setFile(null);
-        notify(validation.message, 'warning');
+        setFileError(validation.message);
       }
     }
   };
@@ -45,8 +49,13 @@ export default function OverwriteImportPage({ params }) {
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const validation = validateInput(inputSchemas.importFile, e.target.files[0]);
-      if (validation.success) setFile(e.target.files[0]);
-      else { setFile(null); notify(validation.message, 'warning'); }
+      if (validation.success) {
+        setFile(e.target.files[0]);
+        setFileError('');
+      } else {
+        setFile(null);
+        setFileError(validation.message);
+      }
     }
   };
 
@@ -54,9 +63,10 @@ export default function OverwriteImportPage({ params }) {
     e.preventDefault();
     const validation = validateInput(inputSchemas.importFile, file);
     if (!validation.success) {
-      notify(validation.message, 'warning');
+      setFileError(validation.message);
       return;
     }
+    setFileError('');
 
     if (!await confirmAction('Overwrite replaces the existing sections, questions, choices, candidate sessions, and results for this assessment.', { title: 'Replace assessment content?', confirmLabel: 'Overwrite assessment', tone: 'danger' })) {
       return;
@@ -106,8 +116,9 @@ export default function OverwriteImportPage({ params }) {
       </div>
 
       <div className="glass-card" style={{ maxWidth: '600px' }}>
-        <form onSubmit={handleSubmit}>
-          
+        <form noValidate onSubmit={handleSubmit}>
+          <ExamImportTemplateLinks />
+
           <div
             onDragEnter={handleDrag}
             onDragOver={handleDrag}
@@ -130,7 +141,7 @@ export default function OverwriteImportPage({ params }) {
               type="file"
               id="file-upload"
               style={{ display: 'none' }}
-              accept=".json,.xlsx,.xls"
+              accept=".json,.xlsx"
               onChange={handleFileChange}
               disabled={loading}
             />
@@ -150,17 +161,18 @@ export default function OverwriteImportPage({ params }) {
                   Drag and drop JSON or Excel (.xlsx) file
                 </p>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.5rem', marginBottom: 0 }}>
-                  or click here to browse files
+                  or click to browse · Excel files must use the exported template; legacy .xls is not supported
                 </p>
               </div>
             )}
           </div>
+          <FieldError id="import-file-error" message={fileError} />
 
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button
               type="submit"
               className="btn btn-danger"
-              disabled={!file || loading}
+              disabled={loading}
               style={{ flex: 1 }}
             >
               {loading ? 'Overwriting Exam...' : 'Overwrite Existing Exam'}

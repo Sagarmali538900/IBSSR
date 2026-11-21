@@ -15,11 +15,16 @@ const UserSchema = new mongoose.Schema({
 // 2. Exam Model Schema
 const ExamSchema = new mongoose.Schema({
   title: { type: String, required: true },
+  titleKey: { type: String, select: false },
   description: { type: String },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   sharedWith: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
+});
+ExamSchema.index({ titleKey: 1 }, {
+  unique: true,
+  partialFilterExpression: { titleKey: { $type: 'string' } },
 });
 
 // 3. Section Model Schema
